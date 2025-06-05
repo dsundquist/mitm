@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -39,7 +39,7 @@ pub enum CASubcommand {
 
 #[derive(Args)]
 pub struct CAInitArgs {
-    /// Path to the CA 
+    /// Path to the CA
     #[arg(long, short = 'p')]
     pub cert_path: Option<PathBuf>,
 
@@ -47,7 +47,7 @@ pub struct CAInitArgs {
     #[arg(long, short = 'k')]
     pub key_name: Option<PathBuf>,
 
-    /// Name of the public certificate file 
+    /// Name of the public certificate file
     #[arg(long, short = 'c')]
     pub cert_name: Option<PathBuf>,
 }
