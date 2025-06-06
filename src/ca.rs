@@ -87,14 +87,18 @@ fn write_certificate_to_config_directory(
     cert_file.write_all(contents.as_bytes()).unwrap();
 }
 
-/// Clears the config directory (~/.mitm) of all files
-pub fn clear_config_directory() {
+/// Clears the config directory (~/.mitm) of all files 
+pub fn clear_config_directory(save_ca_files: bool) {
     info!("Clearing the config directory");
     let mitm_dir = get_mitm_directory();
     for entry in fs::read_dir(mitm_dir).unwrap() {
         let path = entry.unwrap().path();
         if path.is_file() {
-            fs::remove_file(&path).unwrap();
+            if save_ca_files && (path.ends_with("ca.crt") || path.ends_with("ca.key")) {
+                info!("Skipping CA File: {:?}", path);
+            } else {
+                fs::remove_file(&path).unwrap();
+            }
         } else if path.is_dir() {
             // Optionally clear subdirectories recursively:
             fs::remove_dir_all(&path).unwrap();
@@ -121,16 +125,19 @@ fn generate_ca_cert(subject_alt_names: impl Into<Vec<String>>) -> Result<Certifi
 
     let cert = cert_params.self_signed(&key_pair)?;
 
-    Ok(CertifiedKey { cert, key_pair })
+    Ok(CertifiedKey { 
+        cert, 
+        key_pair 
+    })
 }
 
 /// Creates a new Certificate Authority (if one doesn't already exist) in ~/.mitm
-/// It creates two files:
-/// * ~/.mitm/ca.key = Private Key (perm: 600)
+/// It creates two files: 
+/// * ~/.mitm/ca.key = Private Key (perm: 600) 
 /// * ~/.mitm/ca.pem = Public Certificate (perm: 644)
-///
+/// 
 /// Otherwise, it loads the two files above.  
-/// It always returns a CertifiedKey, representing the CA.
+/// It always returns a CertifiedKey, representing the CA. 
 pub fn get_certificate_authority() -> CertifiedKey {
     ensure_config_directory_exists();
 
@@ -161,12 +168,16 @@ pub fn get_certificate_authority() -> CertifiedKey {
 
         let cert = my_cert_params.self_signed(&key_pair).unwrap();
 
-        CertifiedKey { cert, key_pair }
+        CertifiedKey { 
+            cert, 
+            key_pair 
+        }
     }
 }
 
+
 /// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
-/// Finally it returns a CertifiedKey of the Leaf Certificate.
+/// Finally it returns a CertifiedKey of the Leaf Certificate. 
 pub fn get_leaf_cert(hostname: &str) -> CertifiedKey {
     let ca = get_certificate_authority();
 
@@ -209,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_generate_leaf_cert() {
-        // TODO: Create this test!
+        // TODO: Create this test! 
         // This will panic because it's unimplemented, but shows the pattern:
         // let ca_cert = generate_ca_cert();
         // let (_cert, _key) = generate_leaf_cert(&ca_cert, "example.com");

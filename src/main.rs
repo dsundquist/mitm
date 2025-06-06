@@ -1,6 +1,6 @@
 mod ca; // rcgen code
 mod commands; // clap derive code
-mod proxy; // pingora impl code // rcgen code 
+mod proxy; // pingora impl code
 
 use clap::Parser;
 use env_logger::Env;
@@ -26,8 +26,8 @@ fn main() {
             commands::CASubcommand::Sign(sign_args) => {
                 handle_ca_sign_command(sign_args);
             }
-            commands::CASubcommand::Clear => {
-                handle_ca_clear_command();
+            commands::CASubcommand::Clear(clear_args) => {
+                handle_ca_clear_command(clear_args);
             }
         },
         Some(commands::Commands::Start(start_args)) => {
@@ -48,8 +48,8 @@ fn handle_ca_sign_command(sign_args: commands::CASignArgs) {
     ca::get_leaf_cert(&sign_args.san_name);
 }
 
-fn handle_ca_clear_command() {
-    ca::clear_config_directory();
+fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {
+    ca::clear_config_directory(clear_args.execept_ca);
 }
 
 fn handle_serve_command(start_args: commands::StartArgs) {
@@ -76,8 +76,8 @@ fn handle_serve_command(start_args: commands::StartArgs) {
 
     // With TLS, which we'll use the same cert for the gotestserver
     let addr = "127.0.0.1:6188";
-    let cert_path = "/home/hans/go/bin/server.crt";
-    let key_path = "/home/hans/go/bin/server.key";
+    let cert_path = "/home/hans/.mitm/example.sundquist.net.crt";
+    let key_path = "/home/hans/.mitm/example.sundquist.net.key";
     lb.add_tls(addr, cert_path, key_path).unwrap();
 
     my_server.add_service(lb);

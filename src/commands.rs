@@ -22,7 +22,7 @@ pub enum Commands {
 
 #[derive(Args)]
 pub struct StartArgs {
-    /// CA_File to use, if necessary
+    /// Optional CA_File to use for the upstream TLS connection. 
     #[arg(long, short = 'c')]
     pub ca_file: Option<String>,
 }
@@ -40,7 +40,7 @@ pub enum CASubcommand {
     /// Sign a certificate with a SAN by the CA
     Sign(CASignArgs),
     /// Clears the config directory
-    Clear,
+    Clear(CAClearArgs),
 }
 
 #[derive(Args)]
@@ -60,7 +60,14 @@ pub struct CAInitArgs {
 
 #[derive(Args)]
 pub struct CASignArgs {
-    /// Common name of a cert to generate and sign by the certificate authority
-    #[arg(long, short = 'c')]
+    /// Used to fill the Common Name and Subject Alternative Name of the Leaf Certificate.
+    #[arg(long, short = 's')]
     pub san_name: String,
+}
+
+#[derive(Args)]
+pub struct CAClearArgs {
+    /// Do not clear the ca files (ca.crt and ca.key)
+    #[arg(long, short = 'x', default_value_t = false)]
+    pub execept_ca: bool,
 }

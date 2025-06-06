@@ -11,14 +11,16 @@ impl ProxyHttp for Mitm {
 
     fn new_ctx(&self) -> Self::CTX {}
 
-    async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut ()) -> Result<Box<HttpPeer>> {
+    async fn upstream_peer(&self, session: &mut Session, _ctx: &mut ()) -> Result<Box<HttpPeer>> {
         // println!("upstream peer is: {self.upstream:?}");
 
-        // Set SNI to blank, which ignores any SNI checks for the Certificate?
+        // Sets the SNI to blank, 
+        // which apparently also ignores SNI checks for the upstream certificate 
+        // (but not when using pingora feature "rustls", which throws an error)
         let peer = Box::new(HttpPeer::new(
             "127.0.0.1:443",
             true,
-            "localhost".to_string(),
+            "".to_string()
         ));
         Ok(peer)
     }
@@ -26,12 +28,12 @@ impl ProxyHttp for Mitm {
     async fn upstream_request_filter(
         &self,
         _session: &mut Session,
-        upstream_request: &mut RequestHeader,
+        _upstream_request: &mut RequestHeader,
         _ctx: &mut Self::CTX,
     ) -> Result<()> {
-        upstream_request
-            .insert_header("Host", "one.one.one.one")
-            .unwrap();
+        // upstream_request
+        //     .insert_header("Host", "one.one.one.one")
+        //     .unwrap();
         Ok(())
     }
 }
