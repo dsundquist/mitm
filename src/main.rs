@@ -4,7 +4,6 @@ mod proxy; // pingora impl code // rcgen code
 
 use clap::Parser;
 use env_logger::Env;
-use log::info;
 use pingora::prelude::*;
 use pingora::server::configuration::ServerConf;
 
@@ -35,9 +34,7 @@ fn main() {
             handle_serve_command(start_args);
         }
         None => {
-            let start_args = commands::StartArgs {
-                ca_file: None
-            }; 
+            let start_args = commands::StartArgs { ca_file: None };
             handle_serve_command(start_args);
         }
     }
@@ -56,13 +53,12 @@ fn handle_ca_clear_command() {
 }
 
 fn handle_serve_command(start_args: commands::StartArgs) {
-
     ca::get_certificate_authority();
 
     // Create a ServerConf first, so that we can specify the ca
     let config = ServerConf {
-            ca_file: start_args.ca_file,
-            ..Default::default()
+        ca_file: start_args.ca_file,
+        ..Default::default()
     };
 
     // And we're not creating this from arguments, but manually

@@ -87,7 +87,7 @@ fn write_certificate_to_config_directory(
     cert_file.write_all(contents.as_bytes()).unwrap();
 }
 
-/// Clears the config directory (~/.mitm) of all files 
+/// Clears the config directory (~/.mitm) of all files
 pub fn clear_config_directory() {
     info!("Clearing the config directory");
     let mitm_dir = get_mitm_directory();
@@ -125,12 +125,12 @@ fn generate_ca_cert(subject_alt_names: impl Into<Vec<String>>) -> Result<Certifi
 }
 
 /// Creates a new Certificate Authority (if one doesn't already exist) in ~/.mitm
-/// It creates two files: 
-/// * ~/.mitm/ca.key = Private Key (perm: 600) 
+/// It creates two files:
+/// * ~/.mitm/ca.key = Private Key (perm: 600)
 /// * ~/.mitm/ca.pem = Public Certificate (perm: 644)
-/// 
+///
 /// Otherwise, it loads the two files above.  
-/// It always returns a CertifiedKey, representing the CA. 
+/// It always returns a CertifiedKey, representing the CA.
 pub fn get_certificate_authority() -> CertifiedKey {
     ensure_config_directory_exists();
 
@@ -165,16 +165,13 @@ pub fn get_certificate_authority() -> CertifiedKey {
     }
 }
 
-
 /// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
-/// Finally it returns a CertifiedKey of the Leaf Certificate. 
+/// Finally it returns a CertifiedKey of the Leaf Certificate.
 pub fn get_leaf_cert(hostname: &str) -> CertifiedKey {
     let ca = get_certificate_authority();
 
-    // My keypair
     let key_pair = KeyPair::generate().unwrap();
 
-    // CommonName
     let mut distinguished_name = DistinguishedName::new();
     distinguished_name.push(DnType::CommonName, hostname);
 
@@ -212,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_generate_leaf_cert() {
-        // TODO: Create this test! 
+        // TODO: Create this test!
         // This will panic because it's unimplemented, but shows the pattern:
         // let ca_cert = generate_ca_cert();
         // let (_cert, _key) = generate_leaf_cert(&ca_cert, "example.com");

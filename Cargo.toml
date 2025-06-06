@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 log = "0.4.27"
 async-trait="0.1"
-pingora = { version = "0.5", features = ["lb", "openssl"] }
+pingora = { version = "0.5", features = ["lb", "boringssl"] }
 env_logger = "0.11.8"
 clap = { version = "4.5", features = ["derive"] }
 rcgen = { version = "0.13.2", features = ["pem", "x509-parser"] }
