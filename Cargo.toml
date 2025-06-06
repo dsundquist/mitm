@@ -9,4 +9,4 @@ async-trait="0.1"
 pingora = { version = "0.5", features = ["lb", "openssl"] }
 env_logger = "0.11.8"
 clap = { version = "4.5", features = ["derive"] }
-rcgen = "0.13.2"
+rcgen = { version = "0.13.2", features = ["pem", "x509-parser"] }

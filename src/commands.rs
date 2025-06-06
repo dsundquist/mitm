@@ -35,6 +35,10 @@ pub struct CAArgs {
 pub enum CASubcommand {
     /// Initialize the certificate authority
     Init(CAInitArgs),
+    /// Sign a certificate with a SAN by the CA
+    Sign(CASignArgs),
+    /// Clears the config directory
+    Clear,
 }
 
 #[derive(Args)]
@@ -50,4 +54,11 @@ pub struct CAInitArgs {
     /// Name of the public certificate file
     #[arg(long, short = 'c')]
     pub cert_name: Option<PathBuf>,
+}
+
+#[derive(Args)]
+pub struct CASignArgs {
+    /// Common name of a cert to generate and sign by the certificate authority
+    #[arg(long, short = 'c')]
+    pub san_name: String,
 }
