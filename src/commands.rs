@@ -22,7 +22,9 @@ pub enum Commands {
 
 #[derive(Args)]
 pub struct StartArgs {
-    // Add arguments for `start` here if needed
+    /// CA_File to use, if necessary
+    #[arg(long, short = 'c')]
+    pub ca_file: Option<String>,
 }
 
 #[derive(Args)]

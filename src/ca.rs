@@ -40,6 +40,8 @@ fn ensure_config_directory_exists() {
     }
 }
 
+/// Returns true if and only if both ~/.mitm/ca.crt and ~/.mitm/ca.key exist.
+/// This function will panic if one but not the other exists.
 fn ca_files_exist() -> bool {
     let mitm_dir = get_mitm_directory();
     let public_cert = mitm_dir.join("ca.crt");
@@ -56,6 +58,7 @@ fn ca_files_exist() -> bool {
     }
 }
 
+/// Get a file from the mitm directory (~/.mitm) as a String
 fn get_from_config_directory(filename: &str) -> String {
     let file_path = get_mitm_directory().join(filename);
     std::fs::read_to_string(&file_path)
@@ -84,7 +87,9 @@ fn write_certificate_to_config_directory(
     cert_file.write_all(contents.as_bytes()).unwrap();
 }
 
+/// Clears the config directory (~/.mitm) of all files 
 pub fn clear_config_directory() {
+    info!("Clearing the config directory");
     let mitm_dir = get_mitm_directory();
     for entry in fs::read_dir(mitm_dir).unwrap() {
         let path = entry.unwrap().path();
@@ -98,10 +103,8 @@ pub fn clear_config_directory() {
 }
 
 fn generate_ca_cert(subject_alt_names: impl Into<Vec<String>>) -> Result<CertifiedKey, Error> {
-    // My keypair
     let key_pair = KeyPair::generate().unwrap();
 
-    // CommonName
     let mut distinguished_name = DistinguishedName::new();
     distinguished_name.push(DnType::CommonName, "MITM Certificate Authority");
 
@@ -121,6 +124,13 @@ fn generate_ca_cert(subject_alt_names: impl Into<Vec<String>>) -> Result<Certifi
     Ok(CertifiedKey { cert, key_pair })
 }
 
+/// Creates a new Certificate Authority (if one doesn't already exist) in ~/.mitm
+/// It creates two files: 
+/// * ~/.mitm/ca.key = Private Key (perm: 600) 
+/// * ~/.mitm/ca.pem = Public Certificate (perm: 644)
+/// 
+/// Otherwise, it loads the two files above.  
+/// It always returns a CertifiedKey, representing the CA. 
 pub fn get_certificate_authority() -> CertifiedKey {
     ensure_config_directory_exists();
 
@@ -155,7 +165,9 @@ pub fn get_certificate_authority() -> CertifiedKey {
     }
 }
 
-#[allow(dead_code)]
+
+/// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
+/// Finally it returns a CertifiedKey of the Leaf Certificate. 
 pub fn get_leaf_cert(hostname: &str) -> CertifiedKey {
     let ca = get_certificate_authority();
 

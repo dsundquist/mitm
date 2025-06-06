@@ -1031,6 +1031,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mitm"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "clap 4.5.39",
+ "env_logger",
+ "log",
+ "pingora",
+ "rcgen",
+]
+
+[[package]]
 name = "neli"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1430,18 +1442,6 @@ dependencies = [
  "hashbrown 0.15.3",
  "parking_lot",
  "rand",
-]
-
-[[package]]
-name = "pingora-mitm"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "clap 4.5.39",
- "env_logger",
- "log",
- "pingora",
- "rcgen",
 ]
 
 [[package]]

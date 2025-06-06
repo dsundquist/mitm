@@ -31,34 +31,38 @@ fn main() {
                 handle_ca_clear_command();
             }
         },
-        Some(commands::Commands::Start(_args)) => {
-            handle_serve_command();
+        Some(commands::Commands::Start(start_args)) => {
+            handle_serve_command(start_args);
         }
         None => {
-            handle_serve_command();
+            let start_args = commands::StartArgs {
+                ca_file: None
+            }; 
+            handle_serve_command(start_args);
         }
     }
+}
+
+fn handle_ca_init_command() -> rcgen::CertifiedKey {
+    ca::get_certificate_authority()
 }
 
 fn handle_ca_sign_command(sign_args: commands::CASignArgs) {
     ca::get_leaf_cert(&sign_args.san_name);
 }
 
-fn handle_ca_init_command() -> rcgen::CertifiedKey {
-    // Check that the config directory exists
-    ca::get_certificate_authority()
-}
-
 fn handle_ca_clear_command() {
-    info!("Clearing the config directory");
     ca::clear_config_directory();
 }
 
-fn handle_serve_command() {
+fn handle_serve_command(start_args: commands::StartArgs) {
+
+    ca::get_certificate_authority();
+
     // Create a ServerConf first, so that we can specify the ca
     let config = ServerConf {
-        ca_file: Some(String::from("/home/hans/go/bin/server.crt")),
-        ..Default::default()
+            ca_file: start_args.ca_file,
+            ..Default::default()
     };
 
     // And we're not creating this from arguments, but manually
