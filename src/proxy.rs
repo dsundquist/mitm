@@ -11,7 +11,7 @@ impl ProxyHttp for Mitm {
 
     fn new_ctx(&self) -> Self::CTX {}
 
-    async fn upstream_peer(&self, session: &mut Session, _ctx: &mut ()) -> Result<Box<HttpPeer>> {
+    async fn upstream_peer(&self, _session: &mut Session, _ctx: &mut ()) -> Result<Box<HttpPeer>> {
         // println!("upstream peer is: {self.upstream:?}");
 
         // Sets the SNI to blank, 

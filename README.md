@@ -22,9 +22,9 @@ mitm ca sign -n "host.example.com"
 ```
 
 ## TODO:
-* Create a CLI, accepting arguements for the server
-* Generate (or specify) a local certificate authority
-* Generate leaf certificates using hostname provided by SNI / host, by that CA. 
+* Investigate ability to become more lax on upstream TLS connection (ignoring cert checks)
+* Dynamically create certificates based on SNI for downstream TLS connecton
+* Create Tests 
 
 ## Maybe:
 * Create a DNS server, that only responds with the address of the MITM proxy? 

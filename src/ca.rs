@@ -210,7 +210,7 @@ pub fn get_leaf_cert(hostname: &str) -> CertifiedKey {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn test_generate_ca_cert() {
