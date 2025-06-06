@@ -23,7 +23,7 @@ mitm ca sign -n "host.example.com"
 
 ## TODO:
 * Investigate ability to become more lax on upstream TLS connection (ignoring cert checks)
-* Dynamically create certificates based on SNI for downstream TLS connecton
+* Dynamically create certificates based on SNI for downstream TLS connecton 
 * Create Tests 
 
 ## Maybe:
