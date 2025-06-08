@@ -4,7 +4,7 @@ use log::info;
 use pingora::prelude::*;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::listeners::TlsAccept;
-use pingora_openssl::pkey::PKey;
+use pingora_openssl::pkey::{PKey, Private};
 use pingora_openssl::x509::X509;
 use std::sync::RwLock;
 use tokio::net::lookup_host;
@@ -36,17 +36,17 @@ impl ProxyHttp for Mitm {
         // Here we're using the SNI from the upstream session
         // **This requires the fork outlined in the Cargo.toml**
 
-    let sni = match &self.upstream_sni {
-        Some(custom_sni) => custom_sni.as_str(),
-        None => session
-            .downstream_session
-            .digest()
-            .unwrap()
-            .ssl_digest
-            .as_ref()
-            .and_then(|d| d.sni.as_deref())
-            .expect("No SNI found in downstream session"),
-    };
+        let sni = match &self.upstream_sni {
+            Some(custom_sni) => custom_sni.as_str(),
+            None => session
+                .downstream_session
+                .digest()
+                .unwrap()
+                .ssl_digest
+                .as_ref()
+                .and_then(|d| d.sni.as_deref())
+                .expect("No SNI found in downstream session"),
+        };
 
         info!("Connecting using sni: {sni}");
 
@@ -81,16 +81,31 @@ impl ProxyHttp for Mitm {
     }
 }
 
-type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
-
 pub struct MyCertProvider{
-    cert_cache: RwLock<CertCache>,  // Not used, yet... 
+    cert_cache: ca::CertCache,  // Not used, yet... 
 }
+
 
 impl MyCertProvider {
     pub fn new() -> Self {
         // TODO: Can we improve on this RwLock?
-        MyCertProvider { cert_cache: RwLock::new(DashMap::new()) }
+        MyCertProvider { cert_cache: DashMap::new() }
+        // WARM the cache here? (from files in ~/.mitm/)
+    }
+
+    pub async fn get_leaf_cert(&self, sni: &str) -> (X509, PKey<Private>) {
+            // Try to get from cache first
+        if let Some(entry) = self.cert_cache.get(sni) {
+            // Clone to return owned values
+            info!("Cert cache hit: {}", sni);
+            return (entry.0.clone(), entry.1.clone());
+        }
+
+        // Otherwise, generate and insert into cache
+        info!("Generating leaf certificate for: {}", sni);
+        let cert = ca::get_leaf_cert_openssl(sni).await;
+        self.cert_cache.insert(sni.to_string(), (cert.0.clone(), cert.1.clone()));
+        cert
     }
 }
 
@@ -103,7 +118,8 @@ impl TlsAccept for MyCertProvider {
             .to_string();
         info!("Certificate Callback called for SNI: {}", sni);
 
-        let leaf = ca::get_leaf_cert_openssl(&sni).await;
+        // let leaf = ca::get_leaf_cert_openssl(&sni).await;
+        let leaf = &self.get_leaf_cert(&sni).await;
         ssl.set_certificate(&leaf.0).unwrap();        
         ssl.set_private_key(&leaf.1).unwrap();
 

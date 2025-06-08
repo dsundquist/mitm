@@ -11,7 +11,7 @@ use pingora::server::configuration::ServerConf;
 
 fn main() {
     // We need some sort of logging... this'll do:
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug"))
+    env_logger::Builder::from_env(Env::default().default_filter_or("info"))
         .format_target(true)
         .format_timestamp(Some(env_logger::TimestampPrecision::Seconds))
         .init();

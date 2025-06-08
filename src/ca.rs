@@ -11,6 +11,9 @@ use std::fs::File;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use dashmap::DashMap;
+
+pub type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
 
 /// Get the mitm directory full path ($home/.mitm expanded)
 /// TODO:  Likely use a dependency (dirs) to support additional platforms
