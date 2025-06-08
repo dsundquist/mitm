@@ -6,12 +6,9 @@ use rcgen::{
 use pingora_openssl::pkey::PKey;
 use pingora_openssl::x509::X509;
 use std::env;
-// use std::fs;
-// use std::fs::File;
-// use std::io::Write;
+use std::ffi::OsStr;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-// use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use dashmap::DashMap;
 
@@ -19,7 +16,7 @@ pub type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
 
 /// Get the mitm directory full path ($home/.mitm expanded)
 /// TODO:  Likely use a dependency (dirs) to support additional platforms
-fn get_mitm_directory() -> PathBuf {
+pub fn get_mitm_directory() -> PathBuf {
     // Get $HOME
     let home_dir = match env::var("HOME") {
         Ok(val) => PathBuf::from(val),
@@ -33,6 +30,36 @@ fn get_mitm_directory() -> PathBuf {
 
     // Append `.mitm`
     home_dir.join(".mitm")
+}
+
+pub fn fill_cache(cert_cache: &mut CertCache) {
+    let mitm_dir = get_mitm_directory();
+
+        if let Ok(entries) = std::fs::read_dir(&mitm_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == OsStr::new("crt") {
+                        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                            // Read cert
+                            let crt_data = std::fs::read(&path).unwrap();
+                            let x509 = X509::from_pem(&crt_data).unwrap();
+
+                            // Read corresponding key
+                            let mut key_path = path.clone();
+                            key_path.set_extension("key");
+                            let key_data = std::fs::read(&key_path).unwrap();
+                            let pkey = PKey::private_key_from_pem(&key_data).unwrap();
+
+                            info!("Filling cache with cert: {}", stem);
+                            cert_cache.insert(stem.to_string(), (x509, pkey));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Ensures that ~/.mitm/ exists, if it doesn't it'll create it

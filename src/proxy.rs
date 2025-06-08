@@ -87,9 +87,10 @@ pub struct MyCertProvider{
 
 impl MyCertProvider {
     pub fn new() -> Self {
-        // TODO: Can we improve on this RwLock?
-        MyCertProvider { cert_cache: DashMap::new() }
-        // WARM the cache here? (from files in ~/.mitm/)
+        // let mitm_dir = ca::get_mitm_directory();
+        let mut cert_cache = ca::CertCache::new();
+        ca::fill_cache(&mut cert_cache);
+        MyCertProvider { cert_cache }
     }
 
     pub async fn get_leaf_cert(&self, sni: &str) -> (X509, PKey<Private>) {
