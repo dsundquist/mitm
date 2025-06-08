@@ -6,11 +6,13 @@ use rcgen::{
 use pingora_openssl::pkey::PKey;
 use pingora_openssl::x509::X509;
 use std::env;
-use std::fs;
-use std::fs::File;
-use std::io::Write;
+// use std::fs;
+// use std::fs::File;
+// use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+// use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
 use dashmap::DashMap;
 
 pub type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
@@ -34,14 +36,14 @@ fn get_mitm_directory() -> PathBuf {
 }
 
 /// Ensures that ~/.mitm/ exists, if it doesn't it'll create it
-fn ensure_config_directory_exists() {
+async fn ensure_config_directory_exists() {
     let mitm_dir = get_mitm_directory();
 
     // Check existence and whether it's a directory
     if !mitm_dir.is_dir() {
         // Create the directory
         info!("Creating mitm config directory at {:?}", mitm_dir);
-        fs::create_dir_all(&mitm_dir).unwrap();
+        tokio::fs::create_dir_all(&mitm_dir).await.unwrap();
     }
 }
 
@@ -64,14 +66,15 @@ fn ca_files_exist() -> bool {
 }
 
 /// Get a file from the mitm directory (~/.mitm) as a String
-fn get_from_config_directory(filename: &str) -> String {
+async fn get_from_config_directory(filename: &str) -> String {
     let file_path = get_mitm_directory().join(filename);
-    std::fs::read_to_string(&file_path)
+    tokio::fs::read_to_string(&file_path)
+        .await
         .unwrap_or_else(|e| panic!("Failed to read {:?}: {}", file_path, e))
 }
 
 /// This will write a file to ~/.mitm/, if it doesn't already exist
-fn write_certificate_to_config_directory(
+async fn write_certificate_to_config_directory(
     file_name: &str,
     contents: String,
     permissions: Option<u32>,
@@ -81,32 +84,33 @@ fn write_certificate_to_config_directory(
         info!("File already exists, not overwriting: {:?}", cert_path);
         return;
     }
-    let mut cert_file = File::create(&cert_path).unwrap();
+    let mut cert_file = tokio::fs::File::create(&cert_path).await.unwrap();
 
     if let Some(permission) = permissions {
         info!("Setting permissions mode {:o}", permission);
-        fs::set_permissions(&cert_path, fs::Permissions::from_mode(permission)).unwrap();
+        tokio::fs::set_permissions(&cert_path, std::fs::Permissions::from_mode(permission)).await.unwrap();
     }
 
     info!("Writing file: {:?}", cert_path);
-    cert_file.write_all(contents.as_bytes()).unwrap();
+    cert_file.write_all(contents.as_bytes()).await.unwrap();
 }
 
 /// Clears the config directory (~/.mitm) of all files 
-pub fn clear_config_directory(save_ca_files: bool) {
+pub async fn clear_config_directory(save_ca_files: bool) {
     info!("Clearing the config directory");
     let mitm_dir = get_mitm_directory();
-    for entry in fs::read_dir(mitm_dir).unwrap() {
-        let path = entry.unwrap().path();
+    let mut read_dir = tokio::fs::read_dir(mitm_dir).await.unwrap();
+    while let Some(entry) = read_dir.next_entry().await.unwrap() {
+        let path = entry.path();
         if path.is_file() {
             if save_ca_files && (path.ends_with("ca.crt") || path.ends_with("ca.key")) {
                 info!("Skipping CA File: {:?}", path);
             } else {
-                fs::remove_file(&path).unwrap();
+                tokio::fs::remove_file(&path).await.unwrap();
             }
         } else if path.is_dir() {
             // Optionally clear subdirectories recursively:
-            fs::remove_dir_all(&path).unwrap();
+            tokio::fs::remove_dir_all(&path).await.unwrap();
         }
     }
 }
@@ -143,8 +147,8 @@ fn generate_ca_cert(subject_alt_names: impl Into<Vec<String>>) -> Result<Certifi
 /// 
 /// Otherwise, it loads the two files above.  
 /// It always returns a CertifiedKey, representing the CA. 
-pub fn get_certificate_authority() -> CertifiedKey {
-    ensure_config_directory_exists();
+pub async fn get_certificate_authority() -> CertifiedKey {
+    ensure_config_directory_exists().await;
 
     if !ca_files_exist() {
         // Generate, write, and return
@@ -152,10 +156,10 @@ pub fn get_certificate_authority() -> CertifiedKey {
         let cert = generate_ca_cert(vec!["test.example.local".to_string()]).unwrap();
 
         // public cert
-        write_certificate_to_config_directory("ca.crt", cert.cert.pem(), Some(0o644));
+        write_certificate_to_config_directory("ca.crt", cert.cert.pem(), Some(0o644)).await;
 
         // private key
-        write_certificate_to_config_directory("ca.key", cert.key_pair.serialize_pem(), Some(0o600));
+        write_certificate_to_config_directory("ca.key", cert.key_pair.serialize_pem(), Some(0o600)).await;
 
         CertifiedKey {
             cert: cert.cert,
@@ -164,11 +168,11 @@ pub fn get_certificate_authority() -> CertifiedKey {
     } else {
         // Else load the CA, and return it
         // First the key
-        let key_string = get_from_config_directory("ca.key");
+        let key_string = get_from_config_directory("ca.key").await;
         let key_pair = rcgen::KeyPair::from_pem(&key_string).unwrap();
 
         // Then the certificate
-        let cert_string = get_from_config_directory("ca.crt");
+        let cert_string = get_from_config_directory("ca.crt").await;
         let my_cert_params = rcgen::CertificateParams::from_ca_cert_pem(&cert_string).unwrap();
 
         let cert = my_cert_params.self_signed(&key_pair).unwrap();
@@ -183,8 +187,8 @@ pub fn get_certificate_authority() -> CertifiedKey {
 
 /// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
 /// Finally it returns a CertifiedKey of the Leaf Certificate. 
-pub fn get_leaf_cert_rcgen(hostname: &str) -> CertifiedKey {
-    let ca = get_certificate_authority();
+pub async fn get_leaf_cert_rcgen(hostname: &str) -> CertifiedKey {
+    let ca = get_certificate_authority().await;
 
     let key_pair = KeyPair::generate().unwrap();
 
@@ -204,11 +208,11 @@ pub fn get_leaf_cert_rcgen(hostname: &str) -> CertifiedKey {
 
     // Write it to the config directory, starting with the public cert
     let file_name = hostname.to_string() + ".crt";
-    write_certificate_to_config_directory(&file_name, cert.pem(), Some(0o644));
+    write_certificate_to_config_directory(&file_name, cert.pem(), Some(0o644)).await;
 
     // then the private key
     let file_name = hostname.to_string() + ".key";
-    write_certificate_to_config_directory(&file_name, key_pair.serialize_pem(), Some(0o600));
+    write_certificate_to_config_directory(&file_name, key_pair.serialize_pem(), Some(0o600)).await;
 
     CertifiedKey { cert, key_pair }
 }
@@ -217,7 +221,7 @@ pub fn get_leaf_cert_rcgen(hostname: &str) -> CertifiedKey {
 pub async fn get_leaf_cert_openssl(sni: &str) -> (X509, PKey<openssl::pkey::Private>) {
     // Use OpenSSL APIs to generate a new keypair and a certificate for the given SNI.
     // Return (X509 cert, PKey private_key)
-    let my_certified_key = get_leaf_cert_rcgen(sni);
+    let my_certified_key = get_leaf_cert_rcgen(sni).await;
 
     // Get DER-encoded certificate and private key
     let cert_der = my_certified_key.cert.der();

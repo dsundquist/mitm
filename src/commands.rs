@@ -1,8 +1,6 @@
 use clap::{Args, Parser, Subcommand};
-use std::os::unix::net::SocketAddr;
 use std::path::PathBuf;
 use std::default::Default;
-use std::net::ToSocketAddrs;
 
 #[derive(Parser)]
 #[command(

@@ -22,7 +22,6 @@ mitm ca sign -n "host.example.com"
 ```
 
 ## TODO:
-* Make everything async, for tokio.  Make cert generation async, file read/write use tokio
 * Right now, we always generate leaf certificates even if one is written to disk
 * Create Cert Cache, fill cache with previously seen certificates (in ~/.mitm)
 * Make CA fields customizeable
@@ -31,6 +30,7 @@ mitm ca sign -n "host.example.com"
 * Make a stub version, where its not a proxy at all but a webserver
 * Make a Wireshark mode.  Two proxies, with http in the middle for loopback sniffing. 
 * To a full one over on logging... Logging is inconsistent at the moment. 
+* Need to pass the ca around, right now its being read from disk on every cert generation.
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:

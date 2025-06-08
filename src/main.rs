@@ -6,8 +6,8 @@ use clap::Parser;
 use env_logger::Env;
 use log::info;
 use pingora::prelude::*;
-use pingora::protocols::l4::socket;
 use pingora::server::configuration::ServerConf;
+use tokio::runtime::Runtime;
 
 fn main() {
     // We need some sort of logging... this'll do:
@@ -44,19 +44,21 @@ fn main() {
 }
 
 fn handle_ca_init_command() -> rcgen::CertifiedKey {
-    ca::get_certificate_authority()
+    let rt = Runtime::new().unwrap();
+    rt.block_on(ca::get_certificate_authority())
 }
 
 fn handle_ca_sign_command(sign_args: commands::CASignArgs) {
-    ca::get_leaf_cert_rcgen(&sign_args.san_name);
+    let rt = Runtime::new().unwrap();
+    rt.block_on(ca::get_leaf_cert_rcgen(&sign_args.san_name));
 }
 
 fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {
-    ca::clear_config_directory(clear_args.execept_ca);
+    let rt = Runtime::new().unwrap();
+    rt.block_on(ca::clear_config_directory(clear_args.execept_ca));
 }
 
 fn handle_start_command(start_args: commands::StartArgs) {
-    ca::get_certificate_authority();
 
     // Create a ServerConf first, so that we can specify the ca
     let ca_file = start_args.ca_file.clone();
@@ -99,6 +101,7 @@ fn handle_start_command(start_args: commands::StartArgs) {
     my_server.add_service(my_service);
 
     my_server.run_forever();
+
 }
 
 fn handle_test_command() {

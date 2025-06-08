@@ -6,7 +6,6 @@ use pingora::upstreams::peer::HttpPeer;
 use pingora::listeners::TlsAccept;
 use pingora_openssl::pkey::{PKey, Private};
 use pingora_openssl::x509::X509;
-use std::sync::RwLock;
 use tokio::net::lookup_host;
 
 
