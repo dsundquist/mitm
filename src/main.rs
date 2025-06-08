@@ -30,12 +30,15 @@ fn main() {
                 handle_ca_clear_command(clear_args);
             }
         },
+        Some(commands::Commands::Test) => {
+            handle_test_command();
+        }
         Some(commands::Commands::Start(start_args)) => {
-            handle_serve_command(start_args);
+            handle_start_command(start_args);
         }
         None => {
             let start_args = commands::StartArgs { ca_file: None };
-            handle_serve_command(start_args);
+            handle_start_command(start_args);
         }
     }
 }
@@ -45,14 +48,14 @@ fn handle_ca_init_command() -> rcgen::CertifiedKey {
 }
 
 fn handle_ca_sign_command(sign_args: commands::CASignArgs) {
-    ca::get_leaf_cert(&sign_args.san_name);
+    ca::get_leaf_cert_rcgen(&sign_args.san_name);
 }
 
 fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {
     ca::clear_config_directory(clear_args.execept_ca);
 }
 
-fn handle_serve_command(start_args: commands::StartArgs) {
+fn handle_start_command(start_args: commands::StartArgs) {
     ca::get_certificate_authority();
 
     // Create a ServerConf first, so that we can specify the ca
@@ -66,21 +69,23 @@ fn handle_serve_command(start_args: commands::StartArgs) {
 
     my_server.bootstrap();
 
-    // let upstreams =
-    //     LoadBalancer::try_from_iter(["localhost:443"]).unwrap();
+    let mut my_service = http_proxy_service(&my_server.configuration, proxy::Mitm);
 
-    let mut lb = http_proxy_service(&my_server.configuration, proxy::Mitm);
+    let cert_provider = Box::new(proxy::MyCertProvider::new());
 
-    // Just plain ol' tcp:
-    // lb.add_tcp("127.0.0.1:6188");
+    // Keeping this for a reference:
+    // let mut tls_settings = pingora::listeners::tls::TlsSettings::intermediate("bogus", "bogus").unwrap(); 
 
-    // With TLS, which we'll use the same cert for the gotestserver
-    let addr = "127.0.0.1:6188";
-    let cert_path = "/home/hans/.mitm/example.sundquist.net.crt";
-    let key_path = "/home/hans/.mitm/example.sundquist.net.key";
-    lb.add_tls(addr, cert_path, key_path).unwrap();
+    let mut tls_settings = pingora::listeners::tls::TlsSettings::with_callbacks(cert_provider).unwrap();
+    tls_settings.enable_h2();
 
-    my_server.add_service(lb);
+    my_service.add_tls_with_settings("127.0.0.1:6188", None, tls_settings);
+
+    my_server.add_service(my_service);
 
     my_server.run_forever();
+}
+
+fn handle_test_command() {
+    ()
 }

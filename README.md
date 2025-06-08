@@ -22,9 +22,9 @@ mitm ca sign -n "host.example.com"
 ```
 
 ## TODO:
-* Investigate ability to become more lax on upstream TLS connection (ignoring cert checks)
-* Dynamically create certificates based on SNI for downstream TLS connecton 
-* Create Tests 
+* Investigate ability to become more lax on upstream TLS connection (ignoring cert checks), ie. Connector
+* Dynamically create certificates based on SNI for downstream TLS connecton, ie. Listner
+* Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:
 * Create a DNS server, that only responds with the address of the MITM proxy? 
@@ -45,6 +45,6 @@ openssl verify -CAfile ca.crt example.sundquist.net.crt
 cargo run -- ca sign -s "example.sundquist.net"
 sudo gotestserver serve -s --cert "$HOME/.mitm/example.sundquist.net.crt" --key "$HOME/.mitm/example.sundquist.net.key"
 cargo run -- start -c "$HOME/.mitm/ca.crt"
-curl https://example.sundquist.net --connect-to ::127.0.0.1:6188 -svk 
+curl https://example.sundquist.net/request --connect-to ::127.0.0.1:6188 -svk 
 ```
 

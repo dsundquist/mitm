@@ -18,6 +18,8 @@ pub enum Commands {
     Start(StartArgs),
     /// Run CA related commands
     CA(CAArgs),
+    /// Delete me - for testing scenarios 
+    Test
 }
 
 #[derive(Args)]

@@ -3,6 +3,8 @@ use rcgen::{
     BasicConstraints, CertificateParams, CertifiedKey, DistinguishedName, DnType, Error, IsCa,
     KeyPair, KeyUsagePurpose,
 };
+use pingora_openssl::pkey::PKey;
+use pingora_openssl::x509::X509;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -178,7 +180,7 @@ pub fn get_certificate_authority() -> CertifiedKey {
 
 /// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
 /// Finally it returns a CertifiedKey of the Leaf Certificate. 
-pub fn get_leaf_cert(hostname: &str) -> CertifiedKey {
+pub fn get_leaf_cert_rcgen(hostname: &str) -> CertifiedKey {
     let ca = get_certificate_authority();
 
     let key_pair = KeyPair::generate().unwrap();
@@ -206,6 +208,23 @@ pub fn get_leaf_cert(hostname: &str) -> CertifiedKey {
     write_certificate_to_config_directory(&file_name, key_pair.serialize_pem(), Some(0o600));
 
     CertifiedKey { cert, key_pair }
+}
+
+/// Used instead of generate_leaf_cert, when needing a X509 and PKey for OpenSSL
+pub async fn get_leaf_cert_openssl(sni: &str) -> (X509, PKey<openssl::pkey::Private>) {
+    // Use OpenSSL APIs to generate a new keypair and a certificate for the given SNI.
+    // Return (X509 cert, PKey private_key)
+    let my_certified_key = get_leaf_cert_rcgen(sni);
+
+    // Get DER-encoded certificate and private key
+    let cert_der = my_certified_key.cert.der();
+    let key_der = my_certified_key.key_pair.serialized_der();
+
+    // Parse DER into OpenSSL types
+    let x509 = X509::from_der(&cert_der).unwrap();
+    let pkey = PKey::private_key_from_der(&key_der).unwrap();
+
+    (x509, pkey)
 }
 
 #[cfg(test)]
