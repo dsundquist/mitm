@@ -6,6 +6,7 @@ use clap::Parser;
 use env_logger::Env;
 use log::info;
 use pingora::prelude::*;
+use pingora::protocols::l4::socket;
 use pingora::server::configuration::ServerConf;
 
 fn main() {
@@ -74,7 +75,9 @@ fn handle_start_command(start_args: commands::StartArgs) {
     let inner = proxy::Mitm {
         verify_cert: !start_args.ignore_cert,
         verify_hostname: !start_args.ignore_hostname_check,
-        origin: start_args.origin,
+        upstream: start_args.upstream,
+        upstream_sni: start_args.sni,
+
     };
 
     info!("Setting verify_cert to {}", inner.verify_cert);
@@ -88,7 +91,10 @@ fn handle_start_command(start_args: commands::StartArgs) {
     let mut tls_settings = pingora::listeners::tls::TlsSettings::with_callbacks(cert_provider).unwrap();
     tls_settings.enable_h2();
 
-    my_service.add_tls_with_settings("127.0.0.1:6188", None, tls_settings);
+    let socket_addr = format!("127.0.0.1:{}", start_args.listening_port);
+    info!("Listening on: {}", &socket_addr);
+
+    my_service.add_tls_with_settings(&socket_addr, None, tls_settings);
 
     my_server.add_service(my_service);
 

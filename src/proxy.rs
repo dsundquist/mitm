@@ -15,7 +15,8 @@ use crate::ca;
 pub struct Mitm{
     pub verify_cert: bool,
     pub verify_hostname: bool,
-    pub origin: Option<String>, 
+    pub upstream: Option<String>, 
+    pub upstream_sni: Option<String>,
 }
 
 #[async_trait]
@@ -34,22 +35,24 @@ impl ProxyHttp for Mitm {
 
         // Here we're using the SNI from the upstream session
         // **This requires the fork outlined in the Cargo.toml**
-        let sni = session
+
+    let sni = match &self.upstream_sni {
+        Some(custom_sni) => custom_sni.as_str(),
+        None => session
             .downstream_session
             .digest()
             .unwrap()
             .ssl_digest
             .as_ref()
-            .unwrap()
-            .sni
-            .as_ref()
-            .unwrap();
+            .and_then(|d| d.sni.as_deref())
+            .expect("No SNI found in downstream session"),
+    };
 
         info!("Connecting using sni: {sni}");
 
         let mut peer;
 
-        if self.origin.is_none() {
+        if self.upstream.is_none() {
             // Do a DNS lookup of the origin given the SNI.
             let addr_str = format!("{}:443", sni);
             let mut addrs = lookup_host(addr_str).await.unwrap();
@@ -57,7 +60,7 @@ impl ProxyHttp for Mitm {
             let socket_addr = addrs.next().unwrap();
             peer = Box::new(HttpPeer::new(socket_addr.to_string(), true, sni.to_string()));
         } else {
-            peer = Box::new(HttpPeer::new(self.origin.as_ref().unwrap(), true, sni.to_string()));
+            peer = Box::new(HttpPeer::new(self.upstream.as_ref().unwrap(), true, sni.to_string()));
         }
         peer.options.verify_cert = self.verify_cert;
         peer.options.verify_hostname = self.verify_hostname;

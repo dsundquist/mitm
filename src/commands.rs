@@ -27,6 +27,9 @@ pub enum Commands {
 
 #[derive(Args, Debug)]
 pub struct StartArgs {
+    /// Proxy listening port
+    #[arg(long, short = 'p', default_value_t = 6188)]
+    pub listening_port: u16,
     /// Optional CA_File to use for the upstream TLS connection. 
     #[arg(long, short = 'c')]
     pub ca_file: Option<String>,
@@ -36,21 +39,26 @@ pub struct StartArgs {
     /// Ignore the upstream certificate, Default = False
     #[arg(long, short = 'k', default_value_t = false)]
     pub ignore_cert: bool,
+    /// Set the upstream SNI, otherwise uses the downstream SNI
+    #[arg(long, short = 's')]
+    pub sni: Option<String>,
     // This is ugly, but it does print out properly..
-    #[arg(long, short = 's',  help = r#"Specify a static origin for all requests.
-When set to None, it'll dynamically look up origin by upstream SNI.
-This is useful for testing or forcing all traffic to a single backend."#)]
-    pub origin: Option<String>,
-
+    #[arg(long, short = 'u',  help = r#"Specify a static origin for all upstream requests.
+When not supplied, it'll dynamically look up upstream by downstream (client) SNI.
+This is useful for testing or forcing all traffic to a single backend.
+Takes SocketAddrs, Eg: "127.0.0.1:443", "localhost:443""#)]
+    pub upstream: Option<String>,
 }
 
 impl Default for StartArgs {
     fn default() -> Self {
         StartArgs {
+            listening_port: 6188,
             ca_file: None,
             ignore_hostname_check: false,
             ignore_cert: false,
-            origin: Some("127.0.0.1:443".to_string()),
+            sni: None,
+            upstream: Some("127.0.0.1:443".to_string()),
         }
     }
 }

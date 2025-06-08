@@ -29,7 +29,8 @@ mitm ca sign -n "host.example.com"
 * Make Leaf Certificates Customizeable
 * I started with rcgen, for cert generation, then found I wanted to use a OpenSSL/BoringSSL backend for pingora.  Should we generate certs using OpenSSL? 
 * Make a stub version, where its not a proxy at all but a webserver
-* More upstream connection (ignore SNI verification, ...)
+* Make a Wireshark mode.  Two proxies, with http in the middle for loopback sniffing. 
+* To a full one over on logging... Logging is inconsistent at the moment. 
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:
