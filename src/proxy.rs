@@ -14,12 +14,13 @@ use crate::ca;
 
 pub struct Mitm{
     pub verify_cert: bool,
-    pub dynamic_origin: bool,
+    pub verify_hostname: bool,
+    pub origin: Option<String>, 
 }
 
 #[async_trait]
 impl ProxyHttp for Mitm {
-    /// For this small example, we don't need context storage
+    // Haven't found a need yet for a context, yet in this program. 
     type CTX = ();
 
     fn new_ctx(&self) -> Self::CTX {}
@@ -48,7 +49,7 @@ impl ProxyHttp for Mitm {
 
         let mut peer;
 
-        if self.dynamic_origin {
+        if self.origin.is_none() {
             // Do a DNS lookup of the origin given the SNI.
             let addr_str = format!("{}:443", sni);
             let mut addrs = lookup_host(addr_str).await.unwrap();
@@ -56,10 +57,12 @@ impl ProxyHttp for Mitm {
             let socket_addr = addrs.next().unwrap();
             peer = Box::new(HttpPeer::new(socket_addr.to_string(), true, sni.to_string()));
         } else {
-            peer = Box::new(HttpPeer::new("127.0.0.1:443", true, sni.to_string()));
+            peer = Box::new(HttpPeer::new(self.origin.as_ref().unwrap(), true, sni.to_string()));
         }
         peer.options.verify_cert = self.verify_cert;
+        peer.options.verify_hostname = self.verify_hostname;
         Ok(peer)
+
     }
 
     async fn upstream_request_filter(
@@ -99,9 +102,7 @@ impl TlsAccept for MyCertProvider {
 
         let leaf = ca::get_leaf_cert_openssl(&sni).await;
         ssl.set_certificate(&leaf.0).unwrap();        
-
-        // ssl.set_certificate_chain_file("/home/hans/.mitm/chain.pem").unwrap();
         ssl.set_private_key(&leaf.1).unwrap();
-        // ssl.set_private_key_file("/home/hans/.mitm/example.sundquist.net.key", openssl::ssl::SslFiletype::PEM).unwrap();
+
     }
 }

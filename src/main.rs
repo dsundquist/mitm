@@ -58,8 +58,9 @@ fn handle_start_command(start_args: commands::StartArgs) {
     ca::get_certificate_authority();
 
     // Create a ServerConf first, so that we can specify the ca
+    let ca_file = start_args.ca_file.clone();
     let config = ServerConf {
-        ca_file: start_args.ca_file,
+        ca_file,
         ..Default::default()
     };
 
@@ -68,9 +69,12 @@ fn handle_start_command(start_args: commands::StartArgs) {
 
     my_server.bootstrap();
 
+    info!("Start Args: \n{:?}", start_args);
+
     let inner = proxy::Mitm {
         verify_cert: !start_args.ignore_cert,
-        dynamic_origin: start_args.dynamic_origin,
+        verify_hostname: !start_args.ignore_hostname_check,
+        origin: start_args.origin,
     };
 
     info!("Setting verify_cert to {}", inner.verify_cert);

@@ -26,7 +26,10 @@ mitm ca sign -n "host.example.com"
 * Right now, we always generate leaf certificates even if one is written to disk
 * Create Cert Cache, fill cache with previously seen certificates (in ~/.mitm)
 * Make CA fields customizeable
-* Make Leaf Certificates Customizeable 
+* Make Leaf Certificates Customizeable
+* I started with rcgen, for cert generation, then found I wanted to use a OpenSSL/BoringSSL backend for pingora.  Should we generate certs using OpenSSL? 
+* Make a stub version, where its not a proxy at all but a webserver
+* More upstream connection (ignore SNI verification, ...)
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:
