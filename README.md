@@ -22,8 +22,11 @@ mitm ca sign -n "host.example.com"
 ```
 
 ## TODO:
-* Investigate ability to become more lax on upstream TLS connection (ignoring cert checks), ie. Connector
-* Dynamically create certificates based on SNI for downstream TLS connecton, ie. Listner
+* Make everything async, for tokio.  Make cert generation async, file read/write use tokio
+* Right now, we always generate leaf certificates even if one is written to disk
+* Create Cert Cache, fill cache with previously seen certificates (in ~/.mitm)
+* Make CA fields customizeable
+* Make Leaf Certificates Customizeable 
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:

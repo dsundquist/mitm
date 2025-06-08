@@ -1,16 +1,21 @@
 use async_trait::async_trait;
 use dashmap::DashMap;
+use log::info;
 use pingora::prelude::*;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::listeners::TlsAccept;
 use pingora_openssl::pkey::PKey;
 use pingora_openssl::x509::X509;
 use std::sync::RwLock;
-use log::info;
+use tokio::net::lookup_host;
+
 
 use crate::ca;
 
-pub struct Mitm;
+pub struct Mitm{
+    pub verify_cert: bool,
+    pub dynamic_origin: bool,
+}
 
 #[async_trait]
 impl ProxyHttp for Mitm {
@@ -38,10 +43,22 @@ impl ProxyHttp for Mitm {
             .sni
             .as_ref()
             .unwrap();
-        info!("Connecting using sni: {sni:}");
-        let mut peer = Box::new(HttpPeer::new("127.0.0.1:443", true, sni.to_string()));
-        // TODO: Turn this into an option supplied from the command line, to enable / disable
-        peer.options.verify_cert = false;
+
+        info!("Connecting using sni: {sni}");
+
+        let mut peer;
+
+        if self.dynamic_origin {
+            // Do a DNS lookup of the origin given the SNI.
+            let addr_str = format!("{}:443", sni);
+            let mut addrs = lookup_host(addr_str).await.unwrap();
+            // Use the first resolved address
+            let socket_addr = addrs.next().unwrap();
+            peer = Box::new(HttpPeer::new(socket_addr.to_string(), true, sni.to_string()));
+        } else {
+            peer = Box::new(HttpPeer::new("127.0.0.1:443", true, sni.to_string()));
+        }
+        peer.options.verify_cert = self.verify_cert;
         Ok(peer)
     }
 

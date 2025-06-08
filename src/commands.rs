@@ -1,5 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
+use std::default::Default;
 
 #[derive(Parser)]
 #[command(
@@ -27,6 +28,22 @@ pub struct StartArgs {
     /// Optional CA_File to use for the upstream TLS connection. 
     #[arg(long, short = 'c')]
     pub ca_file: Option<String>,
+    /// Ignore the upstream certificate, Default = False
+    #[arg(long, short = 'k', default_value_t = false)]
+    pub ignore_cert: bool,
+    /// Use the SNI to lookup the origin
+    #[arg(long, short = 'd', default_value_t = false)]
+    pub dynamic_origin: bool,
+}
+
+impl Default for StartArgs {
+    fn default() -> Self {
+        StartArgs {
+            ca_file: None,
+            ignore_cert: false,
+            dynamic_origin: false,
+        }
+    }
 }
 
 #[derive(Args)]

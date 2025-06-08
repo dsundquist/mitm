@@ -4,10 +4,9 @@ mod proxy; // pingora impl code
 
 use clap::Parser;
 use env_logger::Env;
+use log::info;
 use pingora::prelude::*;
 use pingora::server::configuration::ServerConf;
-
-// use std::sync::Arc; // Could be used in CTX
 
 fn main() {
     // We need some sort of logging... this'll do:
@@ -37,7 +36,7 @@ fn main() {
             handle_start_command(start_args);
         }
         None => {
-            let start_args = commands::StartArgs { ca_file: None };
+            let start_args = commands::StartArgs::default();
             handle_start_command(start_args);
         }
     }
@@ -69,7 +68,13 @@ fn handle_start_command(start_args: commands::StartArgs) {
 
     my_server.bootstrap();
 
-    let mut my_service = http_proxy_service(&my_server.configuration, proxy::Mitm);
+    let inner = proxy::Mitm {
+        verify_cert: !start_args.ignore_cert,
+        dynamic_origin: start_args.dynamic_origin,
+    };
+
+    info!("Setting verify_cert to {}", inner.verify_cert);
+    let mut my_service = http_proxy_service(&my_server.configuration, inner);
 
     let cert_provider = Box::new(proxy::MyCertProvider::new());
 
