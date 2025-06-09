@@ -1,6 +1,17 @@
 # MITM 
 
-A http(s) main-in-the-middle proxy, built using [Pingora Proxy](https://docs.rs/pingora). 
+A https main-in-the-middle proxy, built using [Pingora Proxy](https://docs.rs/pingora). 
+
+The proxy automatically generates (or if it exists, loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority.  Leaf certificates are saved to disk when generated, saved in a cache when requested, and populared into the cache when the proxy starts. 
+
+This can be helpful for decrypting TLS traffic if you can: 
+
+1) Force the traffic to the listening port of the proxy
+2) Install the Certificate Authority (`~/.mitm/ca.crt`) into the appropriate certificate store. 
+
+There is an interesting feature (enabled by the `-W` flag to the `start` subcommand) that I'm calling [Wireshark Mode](#wireshark-mode).
+
+Since Pingora natively supports WebSockets, this MITM proxy transparently handles WebSocket connections as well—no additional configuration required.
 
 ## Usage
 
@@ -53,7 +64,34 @@ mitm ca init
 mitm ca sign -n "host.example.com" 
 ```
 
+## Normal Proxy mode (mitm start)
+
+A straight forward proxy service: 
+
+```
++---------------------+     +-----------+     +------------------------+
+| Client (Downstream) | --> |   MITM    | --> | HTTPS Server (Upstream)|
++---------------------+     +-----------+     +------------------------+
+```
+
+## Wireshark Mode 
+
+A proxy composed of two components: 
+
+```
++--------+     +-----------+     +-----------+     +--------------+
+| Client | --> | Service A | --> | Service B | --> | HTTPS Server |
++--------+     +-----------+     +-----------+     +--------------+
+```
+
+Where the traffic between Service A and Service B traverses the loopback interface, unencrypted.  That is, open up wireshark on the loopback interface and use the filter `tcp.port == 4076`.  The port (4076) is passed with the `-W` flag.  Eg: 
+
+```
+mitm start -u "127.0.0.1:443" -i -k -W 4076
+```
+
 ## TODO:
+* Currently only linux is supported, think it would be trivial to get working on MacOS / Windows
 * The cert returned is just the leaf certificate, and not a chain... should it be a chain?
 * Theres an assumption that pingora will listen on localhost, add option to pass in a ip address (or socket addr)
 * Make CA fields customizeable
@@ -86,4 +124,3 @@ sudo gotestserver serve -s --cert "$HOME/.mitm/example.sundquist.net.crt" --key 
 cargo run -- start -c "$HOME/.mitm/ca.crt"
 curl https://example.sundquist.net/request --connect-to ::127.0.0.1:6188 -svk 
 ```
-
