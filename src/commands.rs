@@ -46,6 +46,9 @@ When not supplied, it'll dynamically look up upstream by downstream (client) SNI
 This is useful for testing or forcing all traffic to a single backend.
 Takes SocketAddrs, Eg: "127.0.0.1:443", "localhost:443""#)]
     pub upstream: Option<String>,
+    /// Pass a port number that all traffic will be routed through on localhost for wireshark capture.  
+    #[arg(long, short = 'W')]
+    pub wireshark_mode: Option<u16>,
 }
 
 impl Default for StartArgs {
@@ -57,6 +60,7 @@ impl Default for StartArgs {
             ignore_cert: false,
             sni: None,
             upstream: Some("127.0.0.1:443".to_string()),
+            wireshark_mode: None,
         }
     }
 }

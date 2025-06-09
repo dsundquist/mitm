@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use dashmap::DashMap;
 use log::info;
 use pingora::prelude::*;
 use pingora::upstreams::peer::HttpPeer;
@@ -16,6 +15,7 @@ pub struct Mitm{
     pub verify_hostname: bool,
     pub upstream: Option<String>, 
     pub upstream_sni: Option<String>,
+    pub upstream_tls: bool,
 }
 
 #[async_trait]
@@ -37,6 +37,7 @@ impl ProxyHttp for Mitm {
 
         let sni = match &self.upstream_sni {
             Some(custom_sni) => custom_sni.as_str(),
+            // TODO: Refactor Me: 
             None => session
                 .downstream_session
                 .digest()
@@ -44,7 +45,12 @@ impl ProxyHttp for Mitm {
                 .ssl_digest
                 .as_ref()
                 .and_then(|d| d.sni.as_deref())
-                .expect("No SNI found in downstream session"),
+                .unwrap_or_else(|| {
+                    session
+                        .get_header("Host")
+                        .and_then(|hv| hv.to_str().ok())
+                        .unwrap_or("")
+                })
         };
 
         info!("Connecting using sni: {sni}");
@@ -57,12 +63,13 @@ impl ProxyHttp for Mitm {
             let mut addrs = lookup_host(addr_str).await.unwrap();
             // Use the first resolved address
             let socket_addr = addrs.next().unwrap();
-            peer = Box::new(HttpPeer::new(socket_addr.to_string(), true, sni.to_string()));
+            peer = Box::new(HttpPeer::new(socket_addr.to_string(), self.upstream_tls, sni.to_string()));
         } else {
-            peer = Box::new(HttpPeer::new(self.upstream.as_ref().unwrap(), true, sni.to_string()));
+            peer = Box::new(HttpPeer::new(self.upstream.as_ref().unwrap(), self.upstream_tls, sni.to_string()));
         }
         peer.options.verify_cert = self.verify_cert;
         peer.options.verify_hostname = self.verify_hostname;
+
         Ok(peer)
 
     }
@@ -122,6 +129,5 @@ impl TlsAccept for MyCertProvider {
         let leaf = &self.get_leaf_cert(&sni).await;
         ssl.set_certificate(&leaf.0).unwrap();        
         ssl.set_private_key(&leaf.1).unwrap();
-
     }
 }

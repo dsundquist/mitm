@@ -4,7 +4,7 @@ mod proxy; // pingora impl code
 
 use clap::Parser;
 use env_logger::Env;
-use log::info;
+use log::{info, error};
 use pingora::prelude::*;
 use pingora::server::configuration::ServerConf;
 use tokio::runtime::Runtime;
@@ -34,7 +34,15 @@ fn main() {
             handle_test_command();
         }
         Some(commands::Commands::Start(start_args)) => {
-            handle_start_command(start_args);
+            if start_args.wireshark_mode.is_none() {
+                handle_start_command(start_args);
+            } else {
+                if start_args.wireshark_mode.unwrap() <= 1024 {
+                    error!("Please use a port > 1024");
+                } else {
+                    wireshark_mode(start_args)
+                }
+            }
         }
         None => {
             let start_args = commands::StartArgs::default();
@@ -64,6 +72,7 @@ fn handle_start_command(start_args: commands::StartArgs) {
     let ca_file = start_args.ca_file.clone();
     let config = ServerConf {
         ca_file,
+        // upstream_debug_ssl_keylog: false,
         ..Default::default()
     };
 
@@ -79,7 +88,7 @@ fn handle_start_command(start_args: commands::StartArgs) {
         verify_hostname: !start_args.ignore_hostname_check,
         upstream: start_args.upstream,
         upstream_sni: start_args.sni,
-
+        upstream_tls: true,
     };
 
     info!("Setting verify_cert to {}", inner.verify_cert);
@@ -102,6 +111,67 @@ fn handle_start_command(start_args: commands::StartArgs) {
 
     my_server.run_forever();
 
+}
+
+fn wireshark_mode(start_args: commands::StartArgs) {
+    info!("Starting in Wireshark mode");
+
+    // Create a ServerConf first, so that we can specify the ca
+    let ca_file = start_args.ca_file.clone();
+    let config = ServerConf {
+        ca_file,
+        // upstream_debug_ssl_keylog: false,
+        ..Default::default()
+    };
+
+    // And we're not creating this from arguments, but manually
+    let mut my_server = Server::new_with_opt_and_conf(None, config.validate().unwrap());
+
+    my_server.bootstrap();
+
+    info!("Start Args: \n{:?}", start_args);
+
+    // Now we need two services...
+    // [Client] -> [Service A] -> [Service B] -> [Upstream]
+    // Where communications from Serivce A to Service B is regular http. 
+    // That is the Connector on Service A and the Listener on Service B do not use TLS. 
+    // The Listener on Service A and Connector on Service B do use TLS
+    let mitm_service_a = proxy::Mitm {
+        verify_cert: !start_args.ignore_cert,
+        verify_hostname: !start_args.ignore_hostname_check,
+        upstream: Some(String::from("127.0.0.1:6189")),
+        upstream_sni: start_args.sni.clone(),
+        upstream_tls: false,
+    };
+
+    let mitm_service_b = proxy::Mitm {
+        verify_cert: !start_args.ignore_cert,
+        verify_hostname: !start_args.ignore_hostname_check,
+        upstream: start_args.upstream,
+        upstream_sni: start_args.sni.clone(),
+        upstream_tls: true,
+    };
+
+    // Setup Service A
+    let mut service_a = http_proxy_service(&my_server.configuration, mitm_service_a);
+    let cert_provider = Box::new(proxy::MyCertProvider::new());
+    let mut tls_settings = pingora::listeners::tls::TlsSettings::with_callbacks(cert_provider).unwrap();
+    tls_settings.enable_h2();
+
+    let socket_addr = format!("127.0.0.1:{}", start_args.listening_port);
+    info!("Listening on: {}", &socket_addr);
+
+    service_a.add_tls_with_settings(&socket_addr, None, tls_settings);
+
+    // Setup Service B
+    let mut service_b = http_proxy_service(&my_server.configuration, mitm_service_b);
+    service_b.add_tcp("127.0.0.1:6189");
+
+    // Add both to server
+    my_server.add_service(service_a);
+    my_server.add_service(service_b);
+
+    my_server.run_forever();
 }
 
 fn handle_test_command() {
