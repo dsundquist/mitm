@@ -19,8 +19,6 @@ pub enum Commands {
     Start(StartArgs),
     /// Run CA related commands
     CA(CAArgs),
-    /// Delete me - for testing scenarios 
-    Test
 }
 
 #[derive(Args, Debug)]
@@ -42,13 +40,17 @@ pub struct StartArgs {
     pub sni: Option<String>,
     // This is ugly, but it does print out properly..
     #[arg(long, short = 'u',  help = r#"Specify a static origin for all upstream requests.
-When not supplied, it'll dynamically look up upstream by downstream (client) SNI.
+When not supplied, it'll dynamically look up upstream by downstream SNI (or hostname if it is http).
 This is useful for testing or forcing all traffic to a single backend.
 Takes SocketAddrs, Eg: "127.0.0.1:443", "localhost:443""#)]
     pub upstream: Option<String>,
+    /// If this option is enabled, and the env variable SSLKEYLOGFILE is set, the upstream SSL keys will be written to that file. 
+    #[arg(long, short = 't', default_value_t = false)]
+    pub upstream_ssl_keys: bool,
     /// Pass a port number that all traffic will be routed through on localhost for wireshark capture.  
     #[arg(long, short = 'W')]
     pub wireshark_mode: Option<u16>,
+    
 }
 
 impl Default for StartArgs {
@@ -60,6 +62,7 @@ impl Default for StartArgs {
             ignore_cert: false,
             sni: None,
             upstream: Some("127.0.0.1:443".to_string()),
+            upstream_ssl_keys: false,
             wireshark_mode: None,
         }
     }

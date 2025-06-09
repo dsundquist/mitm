@@ -4,7 +4,7 @@ mod proxy; // pingora impl code
 
 use clap::Parser;
 use env_logger::Env;
-use log::{info, error};
+use log::info;
 use pingora::prelude::*;
 use pingora::server::configuration::ServerConf;
 use tokio::runtime::Runtime;
@@ -30,18 +30,11 @@ fn main() {
                 handle_ca_clear_command(clear_args);
             }
         },
-        Some(commands::Commands::Test) => {
-            handle_test_command();
-        }
         Some(commands::Commands::Start(start_args)) => {
             if start_args.wireshark_mode.is_none() {
                 handle_start_command(start_args);
             } else {
-                if start_args.wireshark_mode.unwrap() <= 1024 {
-                    error!("Please use a port > 1024");
-                } else {
-                    wireshark_mode(start_args)
-                }
+                wireshark_mode(start_args);
             }
         }
         None => {
@@ -67,12 +60,11 @@ fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {
 }
 
 fn handle_start_command(start_args: commands::StartArgs) {
-
     // Create a ServerConf first, so that we can specify the ca
     let ca_file = start_args.ca_file.clone();
     let config = ServerConf {
         ca_file,
-        // upstream_debug_ssl_keylog: false,
+        upstream_debug_ssl_keylog: start_args.upstream_ssl_keys,
         ..Default::default()
     };
 
@@ -115,6 +107,8 @@ fn handle_start_command(start_args: commands::StartArgs) {
 
 fn wireshark_mode(start_args: commands::StartArgs) {
     info!("Starting in Wireshark mode");
+    let loopback_port = start_args.wireshark_mode.unwrap();
+    let loopback_ip_port = format!("127.0.0.1:{}", loopback_port);
 
     // Create a ServerConf first, so that we can specify the ca
     let ca_file = start_args.ca_file.clone();
@@ -139,7 +133,7 @@ fn wireshark_mode(start_args: commands::StartArgs) {
     let mitm_service_a = proxy::Mitm {
         verify_cert: !start_args.ignore_cert,
         verify_hostname: !start_args.ignore_hostname_check,
-        upstream: Some(String::from("127.0.0.1:6189")),
+        upstream: Some(loopback_ip_port.clone()),
         upstream_sni: start_args.sni.clone(),
         upstream_tls: false,
     };
@@ -165,15 +159,11 @@ fn wireshark_mode(start_args: commands::StartArgs) {
 
     // Setup Service B
     let mut service_b = http_proxy_service(&my_server.configuration, mitm_service_b);
-    service_b.add_tcp("127.0.0.1:6189");
+    service_b.add_tcp(&loopback_ip_port);
 
     // Add both to server
     my_server.add_service(service_a);
     my_server.add_service(service_b);
 
     my_server.run_forever();
-}
-
-fn handle_test_command() {
-    ()
 }

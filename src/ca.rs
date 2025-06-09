@@ -198,6 +198,8 @@ pub async fn get_certificate_authority() -> CertifiedKey {
         let key_string = get_from_config_directory("ca.key").await;
         let key_pair = rcgen::KeyPair::from_pem(&key_string).unwrap();
 
+        
+
         // Then the certificate
         let cert_string = get_from_config_directory("ca.crt").await;
         let my_cert_params = rcgen::CertificateParams::from_ca_cert_pem(&cert_string).unwrap();
@@ -255,8 +257,8 @@ pub async fn get_leaf_cert_openssl(sni: &str) -> (X509, PKey<openssl::pkey::Priv
     let key_der = my_certified_key.key_pair.serialized_der();
 
     // Parse DER into OpenSSL types
-    let x509 = X509::from_der(&cert_der).unwrap();
-    let pkey = PKey::private_key_from_der(&key_der).unwrap();
+    let x509 = X509::from_der(cert_der).unwrap();
+    let pkey = PKey::private_key_from_der(key_der).unwrap();
 
     (x509, pkey)
 }

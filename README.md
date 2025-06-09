@@ -22,9 +22,8 @@ mitm ca sign -n "host.example.com"
 ```
 
 ## TODO:
-* Export upstream ssl keys, Update: just need to tie in the command line
-* Wireshark mode has a hardprogrammed port number
-* Test Websocket upgrades
+* The cert returned is just the leaf certificate, and not a chain... should it be a chain?
+* Theres an assumption that pingora will listen on localhost, add option to pass in a ip address (or socket addr)
 * Make CA fields customizeable
 * Make Leaf Certificates Customizeable
 * I started with rcgen, for cert generation, then found I wanted to use a OpenSSL/BoringSSL backend for pingora.  Should we generate certs using OpenSSL? 
