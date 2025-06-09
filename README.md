@@ -10,6 +10,38 @@ A http(s) main-in-the-middle proxy, built using [Pingora Proxy](https://docs.rs/
 mitm        # same as `mitm start`
 mitm start  # runs a https mitm server listening on localhost:6188
 mitm start -c "path/to/upstream_ca_store.crt"   # Specify an upstream cert store 
+mitm start -h # Shows all the options 
+```
+
+### mitm start help menu: 
+
+```
+Start the MITM Proxy
+
+Usage: mitm start [OPTIONS]
+
+Options:
+  -p, --listening-port <LISTENING_PORT>
+          Proxy listening port [default: 6188]
+  -c, --ca-file <CA_FILE>
+          Optional CA_File to use for the upstream TLS connection
+  -i, --ignore-hostname-check
+          Ignore the upstream hostname check, Default = False
+  -k, --ignore-cert
+          Ignore the upstream certificate, Default = False
+  -s, --sni <SNI>
+          Set the upstream SNI, otherwise uses the downstream SNI
+  -u, --upstream <UPSTREAM>
+          Specify a static origin for all upstream requests.
+          When not supplied, it'll dynamically look up upstream by downstream SNI (or hostname if it is http).
+          This is useful for testing or forcing all traffic to a single backend.
+          Takes SocketAddrs, Eg: "127.0.0.1:443", "localhost:443"
+  -t, --upstream-ssl-keys
+          If this option is enabled, and the env variable SSLKEYLOGFILE is set, the upstream SSL keys will be written to that file
+  -W, --wireshark-mode <WIRESHARK_MODE>
+          Pass a port number that all traffic will be routed through on localhost for wireshark capture
+  -h, --help
+          Print help
 ```
 
 ### Sub Commands:
