@@ -22,13 +22,15 @@ mitm ca sign -n "host.example.com"
 ```
 
 ## TODO:
-* Export upstream ssl keys
+* Export upstream ssl keys, Update: just need to tie in the command line
+* Wireshark mode has a hardprogrammed port number
+* Test Websocket upgrades
 * Make CA fields customizeable
 * Make Leaf Certificates Customizeable
 * I started with rcgen, for cert generation, then found I wanted to use a OpenSSL/BoringSSL backend for pingora.  Should we generate certs using OpenSSL? 
 * Make a stub version, where its not a proxy at all but a webserver
 * Make a Wireshark mode.  Two proxies, with http in the middle for loopback sniffing. 
-* Do a full one over on logging... Logging is inconsistent at the moment. 
+* Do a full one-over on logging... Logging is inconsistent at the moment. 
 * Need to pass the ca around, right now its being read from disk on every cert generation.
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
