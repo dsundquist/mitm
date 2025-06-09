@@ -2,12 +2,12 @@
 
 A https main-in-the-middle proxy, built using [Pingora Proxy](https://docs.rs/pingora). 
 
-The proxy automatically generates (or if it exists, loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority.  Leaf certificates are saved to disk when generated, saved in a cache when requested, and populared into the cache when the proxy starts. 
+The proxy automatically generates (or if it exists, loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority based on the incomming (downstream) SNI.  Leaf certificates are saved to disk when generated, saved in a cache when requested, and populated into the cache when the proxy starts. 
 
-This can be helpful for decrypting TLS traffic if you can: 
+This proxy can be helpful for decrypting TLS traffic if you can: 
 
 1) Force the traffic to the listening port of the proxy
-2) Install the Certificate Authority (`~/.mitm/ca.crt`) into the appropriate certificate store. 
+2) Install the Certificate Authority (`~/.mitm/ca.crt`) into the appropriate certificate store of the downstream client. 
 
 There is an interesting feature (enabled by the `-W` flag to the `start` subcommand) that I'm calling [Wireshark Mode](#wireshark-mode).
 
