@@ -2,7 +2,13 @@
 
 A https main-in-the-middle proxy, built using [Pingora Proxy](https://docs.rs/pingora). 
 
-The proxy automatically generates (or if it exists, loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority based on the incomming (downstream) SNI.  Leaf certificates are saved to disk when generated, saved in a cache when requested, and populated into the cache when the proxy starts. 
+The proxy automatically generates (or if it exists, loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  
+
+**NOTE**
+> **Note:**  
+> The Certificate Authority is stored in the active user's home directory. If you run `sudo mitm ...`, the CA will be created or loaded in the root user's home directory instead of your own.
+
+That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority based on the incomming (downstream) SNI.  Leaf certificates are saved to disk when generated, saved in a cache when requested, and populated into the cache when the proxy starts. 
 
 This proxy can be helpful for decrypting TLS traffic if you can: 
 
@@ -93,14 +99,13 @@ mitm start -u "127.0.0.1:443" -i -k -W 4076
 ## TODO:
 * Currently only linux is supported, think it would be trivial to get working on MacOS / Windows
 * The cert returned is just the leaf certificate, and not a chain... should it be a chain?
-* Theres an assumption that pingora will listen on localhost, add option to pass in a ip address (or socket addr)
+* There's an assumption that Pingora will listen on localhost, add option to pass in an ip address (or maybe a socket addr)
 * Make CA fields customizeable
-* Make Leaf Certificates Customizeable
+* Make leaf certificates customizeable
 * I started with rcgen, for cert generation, then found I wanted to use a OpenSSL/BoringSSL backend for pingora.  Should we generate certs using OpenSSL? 
-* Make a stub version, where its not a proxy at all but a webserver
-* Make a Wireshark mode.  Two proxies, with http in the middle for loopback sniffing. 
+* Make a stub version, where it's not a proxy at all but a webserver
 * Do a full one-over on logging... Logging is inconsistent at the moment. 
-* Need to pass the ca around, right now its being read from disk on every cert generation.
+* Probably should pass the ca around functions (currently is in the cache as just `ca`), right now it's being read from disk on every cert generation.
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:

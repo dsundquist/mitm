@@ -52,7 +52,6 @@ pub fn fill_cache(cert_cache: &mut CertCache) {
                             let key_data = std::fs::read(&key_path).unwrap();
                             let pkey = PKey::private_key_from_pem(&key_data).unwrap();
 
-                            info!("Filling cache with cert: {}", stem);
                             cert_cache.insert(stem.to_string(), (x509, pkey));
                         }
                     }
@@ -95,9 +94,12 @@ fn ca_files_exist() -> bool {
 /// Get a file from the mitm directory (~/.mitm) as a String
 async fn get_from_config_directory(filename: &str) -> String {
     let file_path = get_mitm_directory().join(filename);
-    tokio::fs::read_to_string(&file_path)
+    let output = tokio::fs::read_to_string(&file_path)
         .await
-        .unwrap_or_else(|e| panic!("Failed to read {:?}: {}", file_path, e))
+        .unwrap_or_else(|e| panic!("Failed to read {:?}: {}", file_path, e));
+
+    info!("Cert for {} loaded: {}", filename, output);
+    output
 }
 
 /// This will write a file to ~/.mitm/, if it doesn't already exist

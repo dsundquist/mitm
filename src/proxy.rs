@@ -5,6 +5,7 @@ use pingora::upstreams::peer::HttpPeer;
 use pingora::listeners::TlsAccept;
 use pingora_openssl::pkey::{PKey, Private};
 use pingora_openssl::x509::X509;
+// use pingora::listeners::ALPN;
 use tokio::net::lookup_host;
 
 
@@ -69,6 +70,11 @@ impl ProxyHttp for Mitm {
         }
         peer.options.verify_cert = self.verify_cert;
         peer.options.verify_hostname = self.verify_hostname;
+        
+        // TODO: This causes complete failure, and should be investigated, setting it to H1 for now
+        // peer.options.alpn = ALPN::H2; // Force HTTP/2
+        // peer.options.alpn = ALPN::H1; // Force HTTP/1
+        
 
         Ok(peer)
 
@@ -88,7 +94,7 @@ impl ProxyHttp for Mitm {
 }
 
 pub struct MyCertProvider{
-    cert_cache: ca::CertCache,  // Not used, yet... 
+    pub cert_cache: ca::CertCache,  // Not used, yet... 
 }
 
 
@@ -105,12 +111,14 @@ impl MyCertProvider {
         if let Some(entry) = self.cert_cache.get(sni) {
             // Clone to return owned values
             info!("Cert cache hit: {}", sni);
+            info!{"Cert: {:?}", entry.0.clone()};
             return (entry.0.clone(), entry.1.clone());
         }
 
         // Otherwise, generate and insert into cache
         info!("Generating leaf certificate for: {}", sni);
         let cert = ca::get_leaf_cert_openssl(sni).await;
+        // info!{"{:?}", cert.0.clone()};
         self.cert_cache.insert(sni.to_string(), (cert.0.clone(), cert.1.clone()));
         cert
     }
