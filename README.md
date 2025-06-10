@@ -5,7 +5,7 @@ A https main-in-the-middle proxy, built using [Pingora Proxy](https://docs.rs/pi
 The proxy automatically generates (or if it exists, loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  
 
 > **NOTE:**
-> The Certificate Authority is stored in the active user's home directory. If you run `sudo mitm ...`, the CA will be created or loaded in the root user's home directory instead of your own.
+> The Certificate Authority is stored in the active user's home directory. If you run `sudo mitm start -p 443 ...`, the CA will be created or loaded in the root user's home directory instead of your own.
 
 That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority based on the incomming (downstream) SNI.  Leaf certificates are saved to disk when generated, saved in a cache when requested, and populated into the cache when the proxy starts. 
 
