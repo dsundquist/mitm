@@ -31,10 +31,12 @@ fn main() {
             }
         },
         Some(commands::Commands::Start(start_args)) => {
+            info!("Start Args: \n{:?}", start_args);
+
             if start_args.wireshark_mode.is_none() {
                 handle_start_command(start_args);
             } else {
-                wireshark_mode(start_args);
+                handle_start_wireshark_mode(start_args);
             }
         }
         None => {
@@ -60,20 +62,8 @@ fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {
 }
 
 fn handle_start_command(start_args: commands::StartArgs) {
-    // Create a ServerConf first, so that we can specify the ca
-    let ca_file = start_args.ca_file.clone();
-    let config = ServerConf {
-        ca_file,
-        upstream_debug_ssl_keylog: start_args.upstream_ssl_keys,
-        ..Default::default()
-    };
 
-    // And we're not creating this from arguments, but manually
-    let mut my_server = Server::new_with_opt_and_conf(None, config.validate().unwrap());
-
-    my_server.bootstrap();
-
-    info!("Start Args: \n{:?}", start_args);
+    let mut my_server = get_server_from_start_args(&start_args);
 
     let inner = proxy::Mitm {
         verify_cert: !start_args.ignore_cert,
@@ -105,25 +95,12 @@ fn handle_start_command(start_args: commands::StartArgs) {
 
 }
 
-fn wireshark_mode(start_args: commands::StartArgs) {
+fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
     info!("Starting in Wireshark mode");
     let loopback_port = start_args.wireshark_mode.unwrap();
     let loopback_ip_port = format!("127.0.0.1:{}", loopback_port);
 
-    // Create a ServerConf first, so that we can specify the ca
-    let ca_file = start_args.ca_file.clone();
-    let config = ServerConf {
-        ca_file,
-        // upstream_debug_ssl_keylog: false,
-        ..Default::default()
-    };
-
-    // And we're not creating this from arguments, but manually
-    let mut my_server = Server::new_with_opt_and_conf(None, config.validate().unwrap());
-
-    my_server.bootstrap();
-
-    info!("Start Args: \n{:?}", start_args);
+    let mut my_server = get_server_from_start_args(&start_args);
 
     // Now we need two services...
     // [Client] -> [Service A] -> [Service B] -> [Upstream]
@@ -166,4 +143,21 @@ fn wireshark_mode(start_args: commands::StartArgs) {
     my_server.add_service(service_b);
 
     my_server.run_forever();
+}
+
+fn get_server_from_start_args(start_args: &commands::StartArgs) -> Server {
+     // Create a ServerConf first, so that we can specify the ca
+    let ca_file = start_args.ca_file.clone();
+    let config = ServerConf {
+        ca_file,
+        upstream_debug_ssl_keylog: start_args.upstream_ssl_keys,
+        ..Default::default()
+    };
+
+    // And we're not creating this from arguments, but manually
+    let mut server = Server::new_with_opt_and_conf(None, config.validate().unwrap());
+
+    server.bootstrap();
+
+    server   
 }
