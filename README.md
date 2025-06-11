@@ -98,13 +98,13 @@ mitm start -u "127.0.0.1:443" -i -k -W 4076
 ## TODO:
 * Currently only linux is supported, think it would be trivial to get working on MacOS / Windows
 * The cert returned is just the leaf certificate, and not a chain... should it be a chain?
-* There's an assumption that Pingora will listen on localhost, add option to pass in an ip address (or maybe a socket addr)
 * Make CA fields customizeable
 * Make leaf certificates customizeable
 * I started with rcgen, for cert generation, then found I wanted to use a OpenSSL/BoringSSL backend for pingora.  Should we generate certs using OpenSSL? 
 * Make a stub version, where it's not a proxy at all but a webserver
 * Do a full one-over on logging... Logging is inconsistent at the moment. 
 * Probably should pass the ca around functions (currently is in the cache as just `ca`), right now it's being read from disk on every cert generation.
+* Remove unwraps and panics, in favor of returning Results<T,E>. 
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:

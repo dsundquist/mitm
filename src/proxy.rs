@@ -1,27 +1,29 @@
 use async_trait::async_trait;
-use log::info;
+use log::{info,debug};
 use pingora::prelude::*;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::listeners::TlsAccept;
+use pingora::server::Server;
+use pingora::server::configuration::ServerConf;
 use pingora_openssl::pkey::{PKey, Private};
 use pingora_openssl::x509::X509;
-// use pingora::listeners::ALPN;
 use tokio::net::lookup_host;
 
-
 use crate::ca;
+use crate::commands::StartArgs;
 
+#[derive(Debug)]
 pub struct Mitm{
     pub verify_cert: bool,
     pub verify_hostname: bool,
-    pub upstream: Option<String>, 
+    pub upstream: Option<std::net::SocketAddrV4>, 
     pub upstream_sni: Option<String>,
     pub upstream_tls: bool,
 }
 
 #[async_trait]
 impl ProxyHttp for Mitm {
-    // Haven't found a need yet for a context, yet in this program. 
+    // Haven't found a need yet for a context yet in this program. 
     type CTX = ();
 
     fn new_ctx(&self) -> Self::CTX {}
@@ -33,11 +35,11 @@ impl ProxyHttp for Mitm {
         // for the upstream certificate.
         // (but not when using pingora feature "rustls", which throws an error)
 
-        // Here we're using the SNI from the upstream session
+        // Here we're using the SNI from the upstream session, defaulting to "".as_str()
         // **This requires the fork outlined in the Cargo.toml**
 
         let sni = match &self.upstream_sni {
-            Some(custom_sni) => custom_sni.as_str(),
+            Some(custom_sni) => custom_sni,
             // TODO: Refactor Me: 
             None => session
                 .downstream_session
@@ -56,13 +58,12 @@ impl ProxyHttp for Mitm {
 
         info!("Connecting using sni: {sni}");
 
+        // If the upstream peer is not not specified, we'll do a dynamic (DNS) lookup 
+        // using the first returned address. Otherwise we'll use the upstream provided. 
         let mut peer;
-
         if self.upstream.is_none() {
-            // Do a DNS lookup of the origin given the SNI.
             let addr_str = format!("{}:443", sni);
             let mut addrs = lookup_host(addr_str).await.unwrap();
-            // Use the first resolved address
             let socket_addr = addrs.next().unwrap();
             peer = Box::new(HttpPeer::new(socket_addr.to_string(), self.upstream_tls, sni.to_string()));
         } else {
@@ -71,13 +72,7 @@ impl ProxyHttp for Mitm {
         peer.options.verify_cert = self.verify_cert;
         peer.options.verify_hostname = self.verify_hostname;
         
-        // TODO: This causes complete failure, and should be investigated, setting it to H1 for now
-        // peer.options.alpn = ALPN::H2; // Force HTTP/2
-        // peer.options.alpn = ALPN::H1; // Force HTTP/1
-        
-
         Ok(peer)
-
     }
 
     async fn upstream_request_filter(
@@ -137,5 +132,22 @@ impl TlsAccept for MyCertProvider {
         let leaf = &self.get_leaf_cert(&sni).await;
         ssl.set_certificate(&leaf.0).unwrap();        
         ssl.set_private_key(&leaf.1).unwrap();
+    }
+}
+
+impl From<StartArgs> for Server {
+    fn from(start_args: StartArgs) -> Self {
+        let ca_file: Option<String> = start_args.ca_file.as_ref().map(|p| p.to_string_lossy().into());
+
+        let config = ServerConf {
+            ca_file,
+            upstream_debug_ssl_keylog: start_args.upstream_ssl_keys,
+            ..Default::default()
+        };
+
+        debug!("Server created from: {:?}", config);
+        let mut server = Server::new_with_opt_and_conf(None, config.validate().unwrap());
+        server.bootstrap();
+        server
     }
 }

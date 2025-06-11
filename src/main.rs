@@ -4,13 +4,12 @@ mod proxy; // pingora impl code
 
 use clap::Parser;
 use env_logger::Env;
-use log::info;
+use log::{info, debug};
 use pingora::prelude::*;
-use pingora::server::configuration::ServerConf;
 use tokio::runtime::Runtime;
 
 fn main() {
-    // We need some sort of logging... this'll do:
+    // Logging uses the env variable "RUST_LOG", otherwise info
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
         .format_target(true)
         .format_timestamp(Some(env_logger::TimestampPrecision::Seconds))
@@ -31,7 +30,7 @@ fn main() {
             }
         },
         Some(commands::Commands::Start(start_args)) => {
-            info!("Start Args: \n{:?}", start_args);
+            debug!("Start Args: \n{:?}", start_args);
 
             if start_args.wireshark_mode.is_none() {
                 handle_start_command(start_args);
@@ -62,9 +61,13 @@ fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {
 }
 
 fn handle_start_command(start_args: commands::StartArgs) {
+    info!("Running proxy in normal mode");
 
-    let mut my_server = get_server_from_start_args(&start_args);
+    // A Pingora HttpProxy goes:
+    // 1. First Create a Server, from a ServerConf: 
+    let mut my_server = Server::from(start_args.clone());
 
+    // 2. Define an inner type of the an HttpProxy (something that implements ProxyHttp)
     let inner = proxy::Mitm {
         verify_cert: !start_args.ignore_cert,
         verify_hostname: !start_args.ignore_hostname_check,
@@ -72,35 +75,37 @@ fn handle_start_command(start_args: commands::StartArgs) {
         upstream_sni: start_args.sni,
         upstream_tls: true,
     };
+    
+    debug!("HttpProxy: {:?}", inner);
+    info!("Upstream: {:?}", inner);
+    info!("Listening on:  {:?}", start_args.listening_socket_addr);
+    info!("Upstream: {:?}", start_args.upstream);
 
-    info!("Setting verify_cert to {}", inner.verify_cert);
-    let mut my_service = http_proxy_service(&my_server.configuration, inner);
-
+    // -- These steps are necessary for our custom, just-in-time certificate generation: 
     let cert_provider = Box::new(proxy::MyCertProvider::new());
-
-    // Keeping this for a reference:
-    // let mut tls_settings = pingora::listeners::tls::TlsSettings::intermediate("bogus", "bogus").unwrap(); 
-
     let mut tls_settings = pingora::listeners::tls::TlsSettings::with_callbacks(cert_provider).unwrap();
-    tls_settings.enable_h2();
+    tls_settings.enable_h2(); 
 
-    let socket_addr = format!("127.0.0.1:{}", start_args.listening_port);
-    info!("Listening on: {}", &socket_addr);
+    // 3. Wrap our ProxyHttp in a HttpProxy, which gets wrapped in a Service 
+    let mut my_service = http_proxy_service(&my_server.configuration, inner);
+    my_service.add_tls_with_settings(&start_args.listening_socket_addr.to_string(), None, tls_settings);
 
-    my_service.add_tls_with_settings(&socket_addr, None, tls_settings);
-
+    // 4. The service needs to be added to the Server 
     my_server.add_service(my_service);
 
+    // 5. The server is then ran which spawns up a Tokio runtime. 
+    //    It is for that reason, this function is not async 
     my_server.run_forever();
 
 }
 
 fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
-    info!("Starting in Wireshark mode");
+    info!("Running proxy in Wireshark mode");
+    
     let loopback_port = start_args.wireshark_mode.unwrap();
     let loopback_ip_port = format!("127.0.0.1:{}", loopback_port);
 
-    let mut my_server = get_server_from_start_args(&start_args);
+    let mut my_server = Server::from(start_args.clone());
 
     // Now we need two services...
     // [Client] -> [Service A] -> [Service B] -> [Upstream]
@@ -110,7 +115,7 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
     let mitm_service_a = proxy::Mitm {
         verify_cert: !start_args.ignore_cert,
         verify_hostname: !start_args.ignore_hostname_check,
-        upstream: Some(loopback_ip_port.clone()),
+        upstream: Some(loopback_ip_port.clone().parse().unwrap()),
         upstream_sni: start_args.sni.clone(),
         upstream_tls: false,
     };
@@ -123,16 +128,19 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
         upstream_tls: true,
     };
 
+    debug!("Service A: {:?}", mitm_service_a);
+    debug!("Service B: {:?}", mitm_service_b);
+    info!("Created HttpProxy:");
+    info!("Listening on:   {}", &start_args.listening_socket_addr);
+    info!("Wireshark port: 127.0.0.1:{}", loopback_port);
+    info!("Upstream:  {:?}", start_args.upstream);
+
     // Setup Service A
     let mut service_a = http_proxy_service(&my_server.configuration, mitm_service_a);
     let cert_provider = Box::new(proxy::MyCertProvider::new());
     let mut tls_settings = pingora::listeners::tls::TlsSettings::with_callbacks(cert_provider).unwrap();
     tls_settings.enable_h2();
-
-    let socket_addr = format!("127.0.0.1:{}", start_args.listening_port);
-    info!("Listening on: {}", &socket_addr);
-
-    service_a.add_tls_with_settings(&socket_addr, None, tls_settings);
+    service_a.add_tls_with_settings(&start_args.listening_socket_addr.to_string(), None, tls_settings);
 
     // Setup Service B
     let mut service_b = http_proxy_service(&my_server.configuration, mitm_service_b);
@@ -143,21 +151,4 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
     my_server.add_service(service_b);
 
     my_server.run_forever();
-}
-
-fn get_server_from_start_args(start_args: &commands::StartArgs) -> Server {
-     // Create a ServerConf first, so that we can specify the ca
-    let ca_file = start_args.ca_file.clone();
-    let config = ServerConf {
-        ca_file,
-        upstream_debug_ssl_keylog: start_args.upstream_ssl_keys,
-        ..Default::default()
-    };
-
-    // And we're not creating this from arguments, but manually
-    let mut server = Server::new_with_opt_and_conf(None, config.validate().unwrap());
-
-    server.bootstrap();
-
-    server   
 }

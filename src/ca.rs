@@ -35,7 +35,7 @@ pub fn get_mitm_directory() -> PathBuf {
 pub fn fill_cache(cert_cache: &mut CertCache) {
     let mitm_dir = get_mitm_directory();
 
-        if let Ok(entries) = std::fs::read_dir(&mitm_dir) {
+    if let Ok(entries) = std::fs::read_dir(&mitm_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {

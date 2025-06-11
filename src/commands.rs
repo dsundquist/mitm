@@ -15,53 +15,57 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Start the MITM Proxy
+    #[command(about = r#"
+Start the MITM Proxy
++---------------------+     +-----------+     +------------------------+
+| Client (Downstream) | --> |   MITM    | --> | HTTPS Server (Upstream)|
++---------------------+     +-----------+     +------------------------+
+"#)]
     Start(StartArgs),
     /// Run CA related commands
     CA(CAArgs),
 }
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct StartArgs {
-    /// Proxy listening port
-    #[arg(long, short = 'p', default_value_t = 6188)]
-    pub listening_port: u16,
-    /// Optional CA_File to use for the upstream TLS connection. 
+    /// Proxy listening socket address
+    #[arg(long, short = 'l', default_value = "127.0.0.1:6188")]
+    pub listening_socket_addr: std::net::SocketAddrV4,
+    /// Optional CA_File to use for the upstream TLS connection
     #[arg(long, short = 'c')]
-    pub ca_file: Option<String>,
-    /// Ignore the upstream hostname check, Default = False
+    pub ca_file: Option<std::path::PathBuf>, 
+    /// Ignore the upstream hostname check [default: false]
     #[arg(long, short = 'i', default_value_t = false)]
     pub ignore_hostname_check: bool,
-    /// Ignore the upstream certificate, Default = False
+    /// Ignore the upstream certificate [default: false]
     #[arg(long, short = 'k', default_value_t = false)]
     pub ignore_cert: bool,
     /// Set the upstream SNI, otherwise uses the downstream SNI
     #[arg(long, short = 's')]
     pub sni: Option<String>,
     // This is ugly, but it does print out properly..
-    #[arg(long, short = 'u',  help = r#"Specify a static origin for all upstream requests.
+    #[arg(long, short = 'u', help = r#"Specify a static origin for all upstream requests.
 When not supplied, it'll dynamically look up upstream by downstream SNI (or hostname if it is http).
 This is useful for testing or forcing all traffic to a single backend.
 Takes SocketAddrs, Eg: "127.0.0.1:443", "localhost:443""#)]
-    pub upstream: Option<String>,
+    pub upstream: Option<std::net::SocketAddrV4>,
     /// If this option is enabled, and the env variable SSLKEYLOGFILE is set, the upstream SSL keys will be written to that file. 
     #[arg(long, short = 't', default_value_t = false)]
     pub upstream_ssl_keys: bool,
     /// Pass a port number that all traffic will be routed through on localhost for wireshark capture.  
     #[arg(long, short = 'W')]
-    pub wireshark_mode: Option<u16>,
-    
+    pub wireshark_mode: Option<u16>,   
 }
 
 impl Default for StartArgs {
     fn default() -> Self {
         StartArgs {
-            listening_port: 6188,
+            listening_socket_addr: "127.0.0.1:6188".parse().unwrap(),
             ca_file: None,
             ignore_hostname_check: false,
             ignore_cert: false,
             sni: None,
-            upstream: Some("127.0.0.1:443".to_string()),
+            upstream: Some("127.0.0.1:443".parse().unwrap()),
             upstream_ssl_keys: false,
             wireshark_mode: None,
         }
