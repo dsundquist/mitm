@@ -7,10 +7,11 @@ use pingora::server::Server;
 use pingora::server::configuration::ServerConf;
 use pingora_openssl::pkey::{PKey, Private};
 use pingora_openssl::x509::X509;
+use rcgen::CertifiedKey;
 use std::ffi::OsStr;
 use tokio::net::lookup_host;
 
-use crate::ca;
+use crate::ca::{self, get_certificate_authority};
 use crate::commands::StartArgs;
 
 // The host header is in different places for HTTPS vs HTTP, see: 
@@ -114,14 +115,15 @@ impl ProxyHttp for Mitm {
 
 pub struct MyCertProvider{
     pub cert_cache: ca::CertCache,
+    pub ca: CertifiedKey,
 }
-
 
 impl MyCertProvider {
     pub fn new() -> Self {
         // let mitm_dir = ca::get_mitm_directory();
         let cert_cache = ca::CertCache::new();
-        let mut cert_provider =  MyCertProvider { cert_cache };
+        let ca = get_certificate_authority();
+        let mut cert_provider =  MyCertProvider { cert_cache, ca };
         cert_provider.fill_cache();
         cert_provider        
     }
@@ -137,15 +139,17 @@ impl MyCertProvider {
 
         // Otherwise, generate and insert into cache
         info!("Generating leaf certificate for: {}", sni);
-        let cert = ca::get_leaf_cert_openssl(sni).await;
+
+        let cert = ca::get_leaf_cert_openssl(&self.ca, sni).await;
         // info!{"{:?}", cert.0.clone()};
         self.cert_cache.insert(sni.to_string(), (cert.0.clone(), cert.1.clone()));
         cert
     }
 
-    fn fill_cache(&mut self) {
+    fn fill_cache(&mut self) {     
         let mitm_dir = ca::get_mitm_directory();
 
+        // Fill the cache
         if let Ok(entries) = std::fs::read_dir(&mitm_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -160,7 +164,14 @@ impl MyCertProvider {
                                 // Read corresponding key
                                 let mut key_path = path.clone();
                                 key_path.set_extension("key");
-                                let key_data = std::fs::read(&key_path).unwrap();
+                                
+                                let key_data = match std::fs::read(&key_path) {
+                                    Ok(data) => data,
+                                    Err(e) => {
+                                        panic!("Could not read key file {:?}: {}.", key_path, e);
+                                    }                                
+                                };
+
                                 let pkey = PKey::private_key_from_pem(&key_data).unwrap();
 
                                 debug!("Filling cert_cache with entry: {}", stem);

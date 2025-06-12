@@ -8,6 +8,8 @@ use log::{info, debug};
 use pingora::prelude::*;
 use tokio::runtime::Runtime;
 
+use crate::ca::get_certificate_authority;
+
 fn main() {
     // Logging uses the env variable "RUST_LOG", otherwise info
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
@@ -45,14 +47,14 @@ fn main() {
     }
 }
 
-fn handle_ca_init_command() -> rcgen::CertifiedKey {
-    let rt = Runtime::new().unwrap();
-    rt.block_on(ca::get_certificate_authority())
+fn handle_ca_init_command() {
+    get_certificate_authority();
 }
 
 fn handle_ca_sign_command(sign_args: commands::CASignArgs) {
     let rt = Runtime::new().unwrap();
-    rt.block_on(ca::get_leaf_cert_rcgen(&sign_args.san_name));
+    let ca = ca::get_certificate_authority();
+    rt.block_on(ca::get_leaf_cert_rcgen(&ca, &sign_args.san_name));
 }
 
 fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {
