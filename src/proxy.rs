@@ -41,6 +41,7 @@ pub struct Mitm{
     pub upstream: Option<std::net::SocketAddrV4>, 
     pub upstream_sni: Option<String>,
     pub upstream_tls: bool,
+    pub stub: bool,
 }
 
 #[async_trait]
@@ -111,6 +112,41 @@ impl ProxyHttp for Mitm {
         
         Ok(peer)
     }
+
+    // Handles all responses in Stub mode, or when user requests /cdn-cgi
+    async fn request_filter(&self, session: &mut Session, _ctx: &mut ()) -> Result<bool> {
+        let path = session.req_header().uri.path();
+
+        if self.stub || path.starts_with("/cdn-cgi") {
+            let mut body = String::from("Welcome to the MITM proxy\n\n");
+            body.push_str(session.request_summary().as_str());
+            body.push_str(&format!("\nMethod: {}\n", session.req_header().method));
+            body.push_str(&format!("URI: {}\n", session.req_header().uri));
+            body.push_str(&format!("HTTP Version: {:?}\n", session.req_header().version));
+            body.push_str(&format!("Remote Address: {:?}\n", session.client_addr()));
+            // TLS info, if available
+            if let Some(digest) = session.downstream_session.digest() {
+                if let Some(ssl) = digest.ssl_digest.as_ref() {
+                    if let Some(sni) = &ssl.sni {
+                        body.push_str(&format!("TLS SNI: {}\n", sni));
+                    }
+                    body.push_str(&format!("TLS Version: {}\n", &ssl.version));
+                    body.push_str(&format!("TLS Cipher: {}\n", &ssl.cipher));                   
+                }
+            }
+            body.push_str("\n\nRequest Headers:\n");
+            for (name, value) in session.req_header().headers.iter() {
+                body.push_str(&format!("{}: {:?}\n", name, value));
+            }
+            
+            session.respond_error_with_body(200, body.into()).await.unwrap();
+            Ok(true)
+            // return Err(Error::new(ErrorType::InternalError));
+        } else {
+            Ok(false)
+        }
+    }
+
 }
 
 pub struct MyCertProvider{

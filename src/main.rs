@@ -77,6 +77,7 @@ fn handle_start_command(start_args: commands::StartArgs) {
         upstream: start_args.upstream,
         upstream_sni: start_args.sni,
         upstream_tls: true,
+        stub: start_args.stub,
     };
     
     debug!("HttpProxy: {:?}", inner);
@@ -122,6 +123,7 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
         upstream: Some(loopback_ip_port.clone().parse().unwrap()),
         upstream_sni: start_args.sni.clone(),
         upstream_tls: false,
+        stub: false,
     };
 
     let mitm_service_b = proxy::Mitm {
@@ -131,6 +133,7 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
         upstream: start_args.upstream,
         upstream_sni: start_args.sni.clone(),
         upstream_tls: true,
+        stub: false,
     };
 
     debug!("Service A: {:?}", mitm_service_a);

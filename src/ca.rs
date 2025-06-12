@@ -219,6 +219,8 @@ pub async fn get_leaf_cert_rcgen(ca: &CertifiedKey, hostname: &str) -> Certified
     // TODO:  NEED TO CHECK THESE ARE THE PARAMS THAT ARE ACCEPTABLE FOR A LEAF CERTIFICATE
     // Create CertificateParams
     let mut cert_params = CertificateParams::new(vec![hostname.to_string()]).unwrap();
+    cert_params.not_before = time::OffsetDateTime::now_utc();
+    cert_params.not_after = time::OffsetDateTime::now_utc().checked_add(time::Duration::days(365 * 3)).unwrap();
     cert_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
     cert_params.distinguished_name = distinguished_name;
 

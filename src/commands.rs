@@ -54,7 +54,10 @@ Takes SocketAddrs, Eg: "127.0.0.1:443", "localhost:443""#)]
     pub upstream_ssl_keys: bool,
     /// Pass a port number that all traffic will be routed through on localhost for wireshark capture.  
     #[arg(long, short = 'W')]
-    pub wireshark_mode: Option<u16>,   
+    pub wireshark_mode: Option<u16>,
+    /// Make it not a proxy at all, but just a webserver that responds with basic connection information. 
+    #[arg(long, short = 'S', default_value_t = false)]
+    pub stub: bool,   
 }
 
 impl Default for StartArgs {
@@ -68,6 +71,7 @@ impl Default for StartArgs {
             upstream: Some("127.0.0.1:443".parse().unwrap()),
             upstream_ssl_keys: false,
             wireshark_mode: None,
+            stub: false,
         }
     }
 }
