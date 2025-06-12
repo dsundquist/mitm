@@ -69,6 +69,7 @@ fn handle_start_command(start_args: commands::StartArgs) {
 
     // 2. Define an inner type of the an HttpProxy (something that implements ProxyHttp)
     let inner = proxy::Mitm {
+        name: String::from("MITM Service"),
         verify_cert: !start_args.ignore_cert,
         verify_hostname: !start_args.ignore_hostname_check,
         upstream: start_args.upstream,
@@ -113,6 +114,7 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
     // That is the Connector on Service A and the Listener on Service B do not use TLS. 
     // The Listener on Service A and Connector on Service B do use TLS
     let mitm_service_a = proxy::Mitm {
+        name: String::from("MITM Service A"),
         verify_cert: !start_args.ignore_cert,
         verify_hostname: !start_args.ignore_hostname_check,
         upstream: Some(loopback_ip_port.clone().parse().unwrap()),
@@ -121,6 +123,7 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
     };
 
     let mitm_service_b = proxy::Mitm {
+        name: String::from("MITM Service B"),
         verify_cert: !start_args.ignore_cert,
         verify_hostname: !start_args.ignore_hostname_check,
         upstream: start_args.upstream,

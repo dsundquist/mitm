@@ -68,7 +68,7 @@ async fn get_from_config_directory(filename: &str) -> String {
         .await
         .unwrap_or_else(|e| panic!("Failed to read {:?}: {}", file_path, e));
 
-    info!("Cert for {} loaded: {}", filename, output);
+    info!("Cert for {} loaded.", filename);
     output
 }
 

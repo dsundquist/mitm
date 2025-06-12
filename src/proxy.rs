@@ -13,8 +13,28 @@ use tokio::net::lookup_host;
 use crate::ca;
 use crate::commands::StartArgs;
 
+// The host header is in different places for HTTPS vs HTTP, see: 
+// https://github.com/cloudflare/pingora/issues/125#issuecomment-1987052630
+fn get_host(session: &mut Session) -> String {
+    if let Some(host) = session.get_header("host") {
+        if let Ok(host) = host.to_str() {
+            info!("Using host header as sni: {}", host);
+            return host.to_string();
+        }
+    }
+
+    if let Some(host) = session.req_header().uri.host() {
+        info!("Using host header as sni: {}", host);
+        return host.to_string();
+    }
+
+    info!("Using default BLANK SNI value");
+    "".to_string()
+}
+
 #[derive(Debug)]
 pub struct Mitm{
+    pub name: String,
     pub verify_cert: bool,
     pub verify_hostname: bool,
     pub upstream: Option<std::net::SocketAddrV4>, 
@@ -30,34 +50,49 @@ impl ProxyHttp for Mitm {
     fn new_ctx(&self) -> Self::CTX {}
 
     async fn upstream_peer(&self, session: &mut Session, _ctx: &mut ()) -> Result<Box<HttpPeer>> {
-        // println!("upstream peer is: {self.upstream:?}");
+        info!("{}: Request: {:?}", self.name, session.request_summary());
 
         // Note: setting the SNI to blank apparently causes SNI checks to be ignored
         // for the upstream certificate.
         // (but not when using pingora feature "rustls", which throws an error)
 
-        // Here we're using the SNI from the upstream session, defaulting to "".as_str()
-        // **This requires the fork outlined in the Cargo.toml**
+        //**Accessing the SNI in this method requires the fork outlined in the Cargo.toml**
+        // What's used for the SNI is:
+        // 1. Did the user supply a custom sni
+        // 2. If not we'll try to use the SNI of the downstream session
+        // 3. If that doesn't exist we'll attempt to use the host header
+        // 4. If that doesn't exist we'll just use an empty string 
+        // 
+        // Probably should consider sending the IP address as the SNI on upstream requests. 
+        // Attempting to use the host header first is specifically to address the Wireshark 
+        // mode where the request is: HTTPS <--> HTTP <--> HTTPS. 
 
-        let sni = match &self.upstream_sni {
-            Some(custom_sni) => custom_sni,
-            // TODO: Refactor Me: 
-            None => session
-                .downstream_session
-                .digest()
-                .unwrap()
-                .ssl_digest
-                .as_ref()
-                .and_then(|d| d.sni.as_deref())
-                .unwrap_or_else(|| {
-                    session
-                        .get_header("Host")
-                        .and_then(|hv| hv.to_str().ok())
-                        .unwrap_or("")
-                })
+        let sni: &str = match &self.upstream_sni { 
+            Some(custom_sni) => { // (1)
+                info!("Using user specified sni: {}", custom_sni);
+                custom_sni
+            }
+            None => { 
+                let ssl_digest = session.downstream_session.digest().unwrap().ssl_digest.clone();
+
+                // The SSL_digest above will not exist when the downstream is unencrypted 
+                let sni = match ssl_digest {
+                    Some(arc) => arc.as_ref().sni.clone(),
+                    None => None,
+                };
+
+                match sni { 
+                    Some(sni) => { // (2)
+                        info!("Using downstream sni: {}", sni);
+                        &sni.clone()
+                    }
+                    None => { 
+                        let host = get_host(session); // (3) / (4)
+                        &host.clone()
+                    }
+                }
+            }
         };
-
-        info!("Connecting using sni: {sni}");
 
         // If the upstream peer is not not specified, we'll do a dynamic (DNS) lookup 
         // using the first returned address. Otherwise we'll use the upstream provided. 
@@ -75,22 +110,10 @@ impl ProxyHttp for Mitm {
         
         Ok(peer)
     }
-
-    async fn upstream_request_filter(
-        &self,
-        _session: &mut Session,
-        _upstream_request: &mut RequestHeader,
-        _ctx: &mut Self::CTX,
-    ) -> Result<()> {
-        // upstream_request
-        //     .insert_header("Host", "one.one.one.one")
-        //     .unwrap();
-        Ok(())
-    }
 }
 
 pub struct MyCertProvider{
-    pub cert_cache: ca::CertCache,  // Not used, yet... 
+    pub cert_cache: ca::CertCache,
 }
 
 
@@ -108,7 +131,7 @@ impl MyCertProvider {
         if let Some(entry) = self.cert_cache.get(sni) {
             // Clone to return owned values
             info!("Cert cache hit: {}", sni);
-            info!{"Cert: {:?}", entry.0.clone()};
+            debug!{"Cert: {:?}", entry.0.clone()};
             return (entry.0.clone(), entry.1.clone());
         }
 
@@ -158,7 +181,7 @@ impl TlsAccept for MyCertProvider {
         let sni = ssl.servername(openssl::ssl::NameType::HOST_NAME)
             .unwrap_or_default()
             .to_string();
-        info!("Certificate Callback called for SNI: {}", sni);
+        debug!("Certificate Callback called for SNI: {}", sni);
 
         // let leaf = ca::get_leaf_cert_openssl(&sni).await;
         let leaf = &self.get_leaf_cert(&sni).await;
