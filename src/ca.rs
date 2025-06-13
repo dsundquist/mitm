@@ -11,24 +11,14 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
+use dirs;
 
 pub type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
 
 /// Get the mitm directory full path ($home/.mitm expanded)
-/// TODO:  Likely use a dependency (dirs) to support additional platforms
 pub fn get_mitm_directory() -> PathBuf {
-    // Get $HOME
-    let home_dir = match env::var("HOME") {
-        Ok(val) => PathBuf::from(val),
-        Err(e) => {
-            panic!(
-                "Please ensure that the environment variable $HOME, is set. {:?}",
-                e
-            );
-        }
-    };
-
-    // Append `.mitm`
+    // Use dirs crate for cross-platform home directory
+    let home_dir = home_dir().expect("Could not determine home directory for this platform.");
     home_dir.join(".mitm")
 }
 

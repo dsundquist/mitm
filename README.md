@@ -105,7 +105,7 @@ mitm start -u "127.0.0.1:443" -i -k -W 4076
 ```
 
 ## TODO:
-* Currently only linux is supported, think it would be trivial to get working on MacOS / Windows
+* Works on linux / mac, get working for Windows.
 * The cert returned is just the leaf certificate, and not a chain... should it be a chain?
 * Make CA fields customizeable
 * Make leaf certificates customizeable
