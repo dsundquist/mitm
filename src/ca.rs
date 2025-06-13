@@ -6,30 +6,16 @@ use openssl::rsa::Rsa;
 use openssl::x509::{X509Builder, X509NameBuilder};
 use openssl::x509::extension::{BasicConstraints, KeyUsage};
 use openssl::x509::X509;
-use std::env;
-use std::fmt::write;
 use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
 
 pub type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
 
 /// Get the mitm directory full path ($home/.mitm expanded)
-/// TODO:  Likely use a dependency (dirs) to support additional platforms
 pub fn get_mitm_directory() -> PathBuf {
-    // Get $HOME
-    let home_dir = match env::var("HOME") {
-        Ok(val) => PathBuf::from(val),
-        Err(e) => {
-            panic!(
-                "Please ensure that the environment variable $HOME, is set. {:?}",
-                e
-            );
-        }
-    };
-
-    // Append `.mitm`
+    // Use dirs crate for cross-platform home directory
+    let home_dir = dirs::home_dir().expect("Could not determine home directory for this platform.");
     home_dir.join(".mitm")
 }
 
@@ -88,7 +74,16 @@ async fn write_certificate_to_config_directory_async(
 
     if let Some(permission) = permissions {
         info!("Setting permissions mode {:o}", permission);
-        tokio::fs::set_permissions(&cert_path, std::fs::Permissions::from_mode(permission)).await.unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            tokio::fs::set_permissions(
+                &cert_path,
+                std::fs::Permissions::from_mode(permission)
+            ).await.unwrap();
+        }
+        #[cfg(windows)]
+        info!("File permissions not set on Windows (not implemented)");
     }
 
     info!("Writing file: {:?}", cert_path);
@@ -109,7 +104,16 @@ fn write_certificate_to_config_directory(
 
     if let Some(permission) = permissions {
         info!("Setting permissions mode {:o}", permission);
-        std::fs::set_permissions(&cert_path, std::fs::Permissions::from_mode(permission)).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(
+                &cert_path,
+                std::fs::Permissions::from_mode(permission)
+            ).unwrap();
+        }
+        #[cfg(windows)]
+        info!("File permissions not set on Windows (not implemented)");
     }
 
     info!("Writing file: {:?}", cert_path);
