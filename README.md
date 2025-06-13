@@ -100,9 +100,9 @@ mitm start -u "127.0.0.1:443" -i -k -W 4076
 * The cert returned is just the leaf certificate, and not a chain... should it be a chain?
 * Make CA fields customizeable
 * Make leaf certificates customizeable
-* I started with rcgen, for cert generation, then found I wanted to use a OpenSSL/BoringSSL backend for pingora.  Should we generate certs using OpenSSL? 
 * Do a full one-over on logging... Logging is inconsistent at the moment. 
 * Remove unwraps and panics, in favor of returning Results<T,E>. 
+* Flamegraph, what takes the longest on a request with a cached certificate (think it could be faster)
 * Create Tests <- CA validity for leaf certs, connect connector to listner? 
 
 ## Maybe:

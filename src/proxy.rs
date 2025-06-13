@@ -7,7 +7,6 @@ use pingora::server::Server;
 use pingora::server::configuration::ServerConf;
 use pingora_openssl::pkey::{PKey, Private};
 use pingora_openssl::x509::X509;
-use rcgen::CertifiedKey;
 use std::ffi::OsStr;
 use tokio::net::lookup_host;
 
@@ -150,16 +149,17 @@ impl ProxyHttp for Mitm {
 }
 
 pub struct MyCertProvider{
-    pub cert_cache: ca::CertCache,
-    pub ca: CertifiedKey,
+    cert_cache: ca::CertCache,
+    ca_cert: X509,
+    ca_pkey: PKey<Private>,
 }
 
 impl MyCertProvider {
     pub fn new() -> Self {
         // let mitm_dir = ca::get_mitm_directory();
         let cert_cache = ca::CertCache::new();
-        let ca = get_certificate_authority();
-        let mut cert_provider =  MyCertProvider { cert_cache, ca };
+        let (ca_cert, ca_pkey) = get_certificate_authority();
+        let mut cert_provider =  MyCertProvider { cert_cache, ca_cert, ca_pkey };
         cert_provider.fill_cache();
         cert_provider        
     }
@@ -176,7 +176,7 @@ impl MyCertProvider {
         // Otherwise, generate and insert into cache
         info!("Generating leaf certificate for: {}", sni);
 
-        let cert = ca::get_leaf_cert_openssl(&self.ca, sni).await;
+        let cert = ca::get_leaf_cert(&self.ca_cert, &self.ca_pkey, sni).await;
         // info!{"{:?}", cert.0.clone()};
         self.cert_cache.insert(sni.to_string(), (cert.0.clone(), cert.1.clone()));
         cert

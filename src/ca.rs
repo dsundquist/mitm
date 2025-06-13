@@ -1,8 +1,4 @@
 use log::info;
-use rcgen::{
-    BasicConstraints, CertificateParams, CertifiedKey, DistinguishedName, DnType, Error, IsCa,
-    KeyPair, KeyUsagePurpose,
-};
 use pingora_openssl::pkey::PKey;
 use pingora_openssl::x509::X509;
 use std::env;
@@ -11,6 +7,11 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
 use dashmap::DashMap;
+use openssl::hash::MessageDigest;
+use openssl::pkey::{ Private};
+use openssl::rsa::Rsa;
+use openssl::x509::{X509Builder, X509NameBuilder};
+use openssl::x509::extension::{BasicConstraints, KeyUsage};
 
 pub type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
 
@@ -135,29 +136,44 @@ pub async fn clear_config_directory(save_ca_files: bool) {
     }
 }
 
-fn generate_ca_cert(subject_alt_names: impl Into<Vec<String>>) -> Result<CertifiedKey, Error> {
-    let key_pair = KeyPair::generate().unwrap();
+fn generate_ca_cert(cn: &str) -> (X509, PKey<Private>) {
+    // Generate private key
+    let rsa = Rsa::generate(4096).expect("Failed to generate RSA key");
+    let pkey = PKey::from_rsa(rsa).expect("Failed to create PKey");
 
-    let mut distinguished_name = DistinguishedName::new();
-    distinguished_name.push(DnType::CommonName, "MITM Certificate Authority");
+    // Build subject name
+    let mut name_builder = X509NameBuilder::new().unwrap();
+    name_builder.append_entry_by_text("CN", cn).unwrap();
+    let name = name_builder.build();
 
-    // TODO:  NEED TO CHECK THESE ARE THE PARAMS THAT ARE ACCEPTABLE FOR A CA
-    // Create CertificateParams
-    let mut cert_params = CertificateParams::new(subject_alt_names)?;
-    cert_params.distinguished_name = distinguished_name;
-    cert_params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
-    cert_params.key_usages = vec![
-        KeyUsagePurpose::DigitalSignature,
-        KeyUsagePurpose::CrlSign,
-        KeyUsagePurpose::KeyCertSign,
-    ];
+    // Build certificate
+    let mut builder = X509Builder::new().unwrap();
+    builder.set_version(2).unwrap();
+    builder.set_subject_name(&name).unwrap();
+    builder.set_issuer_name(&name).unwrap();
+    builder.set_pubkey(&pkey).unwrap();
 
-    let cert = cert_params.self_signed(&key_pair)?;
+    // Set validity
+    builder.set_not_before(&openssl::asn1::Asn1Time::days_from_now(0).unwrap()).unwrap();
+    builder.set_not_after(&openssl::asn1::Asn1Time::days_from_now(3650).unwrap()).unwrap();
 
-    Ok(CertifiedKey { 
-        cert, 
-        key_pair 
-    })
+    // Set extensions
+    let basic_constraints = BasicConstraints::new().ca().build().unwrap();
+    builder.append_extension(basic_constraints).unwrap();
+
+    let key_usage = KeyUsage::new()
+        .key_cert_sign()
+        .crl_sign()
+        .build()
+        .unwrap();
+    builder.append_extension(key_usage).unwrap();
+
+    // Self-sign
+    builder.sign(&pkey, MessageDigest::sha256()).unwrap();
+
+    let cert: X509 = builder.build();
+
+    (cert, pkey)
 }
 
 /// Creates a new Certificate Authority (if one doesn't already exist) in ~/.mitm
@@ -167,93 +183,101 @@ fn generate_ca_cert(subject_alt_names: impl Into<Vec<String>>) -> Result<Certifi
 /// 
 /// Otherwise, it loads the two files above.  
 /// It always returns a CertifiedKey, representing the CA. 
-pub fn get_certificate_authority() -> CertifiedKey {
+pub fn get_certificate_authority() -> (X509, PKey<Private>) {
     ensure_config_directory_exists();
 
     if !ca_files_exist() {
         // Generate, write, and return
         // If the file doesn't already create them, and save thme
-        let cert = generate_ca_cert(vec!["test.example.local".to_string()]).unwrap();
-
-        // public cert
-        write_certificate_to_config_directory("ca.crt", cert.cert.pem(), Some(0o644));
+        let (cert, pkey) = generate_ca_cert("test.example.local");
 
         // private key
-        write_certificate_to_config_directory("ca.key", cert.key_pair.serialize_pem(), Some(0o600));
+        write_certificate_to_config_directory(
+            "ca.key",
+            String::from_utf8(pkey.private_key_to_pem_pkcs8().unwrap()).unwrap(),
+            Some(0o600),
+        );
 
-        CertifiedKey {
-            cert: cert.cert,
-            key_pair: cert.key_pair,
-        }
+        // public cert
+        write_certificate_to_config_directory(
+            "ca.crt",
+            String::from_utf8(cert.to_pem().unwrap()).unwrap(),
+            Some(0o644),
+        );
+
+        (cert, pkey)
     } else {
         // Else load the CA, and return it
         // First the key
         let key_string = get_from_config_directory("ca.key");
-        let key_pair = rcgen::KeyPair::from_pem(&key_string).unwrap();
-
-        
+        let pkey  = PKey::private_key_from_pem(&key_string.as_bytes()).expect("Failed to parse CA private key");
 
         // Then the certificate
         let cert_string = get_from_config_directory("ca.crt");
-        let my_cert_params = rcgen::CertificateParams::from_ca_cert_pem(&cert_string).unwrap();
+        let cert = X509::from_pem(&cert_string.as_bytes()).expect("Failed to parse CA certificate");
 
-        let cert = my_cert_params.self_signed(&key_pair).unwrap();
-
-        CertifiedKey { 
-            cert, 
-            key_pair 
-        }
+        (cert, pkey)
     }
 }
 
 
+
 /// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
 /// Finally it returns a CertifiedKey of the Leaf Certificate. 
-pub async fn get_leaf_cert_rcgen(ca: &CertifiedKey, hostname: &str) -> CertifiedKey {
+pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str) -> (X509, PKey<Private>) {
     
-    let key_pair = KeyPair::generate().unwrap();
+    // Generate leaf private key
+    let rsa = Rsa::generate(2048).expect("Failed to generate RSA key");
+    let leaf_pkey = PKey::from_rsa(rsa).expect("Failed to create PKey");
 
-    let mut distinguished_name = DistinguishedName::new();
-    distinguished_name.push(DnType::CommonName, hostname); // Might want to add IPs here at some point
+    // Build subject name for leaf
+    let mut name_builder = X509NameBuilder::new().unwrap();
+    name_builder.append_entry_by_text("CN", cn).unwrap();
+    let name = name_builder.build();
 
-    // TODO:  NEED TO CHECK THESE ARE THE PARAMS THAT ARE ACCEPTABLE FOR A LEAF CERTIFICATE
-    // Create CertificateParams
-    let mut cert_params = CertificateParams::new(vec![hostname.to_string()]).unwrap();
-    cert_params.not_before = time::OffsetDateTime::now_utc();
-    cert_params.not_after = time::OffsetDateTime::now_utc().checked_add(time::Duration::days(365 * 3)).unwrap();
-    cert_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-    cert_params.distinguished_name = distinguished_name;
+    // Build leaf certificate
+    let mut builder = X509Builder::new().unwrap();
+    builder.set_version(2).unwrap();
+    builder.set_subject_name(&name).unwrap();
+    builder.set_issuer_name(ca_cert.subject_name()).unwrap();
+    builder.set_pubkey(&leaf_pkey).unwrap();
 
-    let cert = cert_params
-        .signed_by(&key_pair, &ca.cert, &ca.key_pair)
+    // Set validity
+    builder.set_not_before(&openssl::asn1::Asn1Time::days_from_now(0).unwrap()).unwrap();
+    builder.set_not_after(&openssl::asn1::Asn1Time::days_from_now(365).unwrap()).unwrap();
+
+    // Set extensions (no CA, only digitalSignature and keyEncipherment)
+    let basic_constraints = BasicConstraints::new().critical().build().unwrap();
+    builder.append_extension(basic_constraints).unwrap();
+
+    let key_usage = KeyUsage::new()
+        .digital_signature()
+        .key_encipherment()
+        .build()
         .unwrap();
+    builder.append_extension(key_usage).unwrap();
 
-    // Write it to the config directory, starting with the public cert
-    let file_name = hostname.to_string() + ".crt";
-    write_certificate_to_config_directory_async(&file_name, cert.pem(), Some(0o644)).await;
+    // Sign with CA key
+    builder.sign(&ca_key, MessageDigest::sha256()).unwrap();
 
-    // then the private key
-    let file_name = hostname.to_string() + ".key";
-    write_certificate_to_config_directory_async(&file_name, key_pair.serialize_pem(), Some(0o600)).await;
+    let cert = builder.build();
 
-    CertifiedKey { cert, key_pair }
-}
+    // Write it to the config directory, starting with the private key
+    let file_name = cn.to_string() + ".key";
+    write_certificate_to_config_directory_async(
+        &file_name,
+        String::from_utf8(leaf_pkey.private_key_to_pem_pkcs8().unwrap()).unwrap(),
+        Some(0o600)
+    ).await;
 
-/// Used instead of generate_leaf_cert, when needing a X509 and PKey for OpenSSL
-pub async fn get_leaf_cert_openssl(ca: &CertifiedKey, sni: &str) -> (X509, PKey<openssl::pkey::Private>) {
-    // Use OpenSSL APIs to generate a new keypair and a certificate for the given SNI.
-    // Return (X509 cert, PKey private_key)
-    let my_certified_key = get_leaf_cert_rcgen(ca, sni).await;
-
-    // Get DER-encoded certificate and private key
-    let cert_der = my_certified_key.cert.der();
-    let key_der = my_certified_key.key_pair.serialized_der();
-
-    // Parse DER into OpenSSL types
-    let x509 = X509::from_der(cert_der).unwrap();
-    let pkey = PKey::private_key_from_der(key_der).unwrap();
-
-    (x509, pkey)
+    // then the public cert
+    let file_name = cn.to_string() + ".crt";
+    write_certificate_to_config_directory_async(
+        &file_name,
+        String::from_utf8(cert.to_pem().unwrap()).unwrap(),
+        Some(0o644)).await;
+    
+    (cert, leaf_pkey)
 }
 
 #[cfg(test)]
