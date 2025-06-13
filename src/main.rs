@@ -6,9 +6,8 @@ use clap::Parser;
 use env_logger::Env;
 use log::{info, debug};
 use pingora::prelude::*;
+use pingora::listeners::tls::TlsSettings;
 use tokio::runtime::Runtime;
-
-use crate::ca::get_certificate_authority;
 
 fn main() {
     // Logging uses the env variable "RUST_LOG", otherwise info
@@ -48,7 +47,7 @@ fn main() {
 }
 
 fn handle_ca_init_command() {
-    get_certificate_authority();
+    ca::get_certificate_authority();
 }
 
 fn handle_ca_sign_command(sign_args: commands::CASignArgs) {
@@ -87,7 +86,7 @@ fn handle_start_command(start_args: commands::StartArgs) {
 
     // -- These steps are necessary for our custom, just-in-time certificate generation: 
     let cert_provider = Box::new(proxy::MyCertProvider::new());
-    let mut tls_settings = pingora::listeners::tls::TlsSettings::with_callbacks(cert_provider).unwrap();
+    let mut tls_settings = TlsSettings::with_callbacks(cert_provider).unwrap();
     tls_settings.enable_h2(); 
 
     // 3. Wrap our ProxyHttp in a HttpProxy, which gets wrapped in a Service 
@@ -146,7 +145,7 @@ fn handle_start_wireshark_mode(start_args: commands::StartArgs) {
     // Setup Service A
     let mut service_a = http_proxy_service(&my_server.configuration, mitm_service_a);
     let cert_provider = Box::new(proxy::MyCertProvider::new());
-    let mut tls_settings = pingora::listeners::tls::TlsSettings::with_callbacks(cert_provider).unwrap();
+    let mut tls_settings = TlsSettings::with_callbacks(cert_provider).unwrap();
     tls_settings.enable_h2();
     service_a.add_tls_with_settings(&start_args.listening_socket_addr.to_string(), None, tls_settings);
 

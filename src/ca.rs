@@ -64,9 +64,9 @@ fn ca_files_exist() -> bool {
 }
 
 /// Get a file from the mitm directory (~/.mitm) as a String
-fn get_from_config_directory(filename: &str) -> String {
+fn get_from_config_directory(filename: &str) -> Vec<u8> {
     let file_path = get_mitm_directory().join(filename);
-    let output = std::fs::read_to_string(&file_path)
+    let output = std::fs::read(&file_path)
         .unwrap_or_else(|e| panic!("Failed to read {:?}: {}", file_path, e));
 
     info!("Cert for {} loaded.", filename);
@@ -76,7 +76,7 @@ fn get_from_config_directory(filename: &str) -> String {
 /// This will write a file to ~/.mitm/, if it doesn't already exist
 async fn write_certificate_to_config_directory_async(
     file_name: &str,
-    contents: String,
+    contents: Vec<u8>,
     permissions: Option<u32>,
 ) {
     let cert_path = get_mitm_directory().join(file_name);
@@ -92,12 +92,12 @@ async fn write_certificate_to_config_directory_async(
     }
 
     info!("Writing file: {:?}", cert_path);
-    cert_file.write_all(contents.as_bytes()).await.unwrap();
+    cert_file.write_all(&contents).await.unwrap();
 }
 
 fn write_certificate_to_config_directory(
     file_name: &str,
-    contents: String,
+    contents: Vec<u8>,
     permissions: Option<u32>,
 ) {
     let cert_path = get_mitm_directory().join(file_name);
@@ -113,7 +113,7 @@ fn write_certificate_to_config_directory(
     }
 
     info!("Writing file: {:?}", cert_path);
-    cert_file.write_all(contents.as_bytes()).unwrap();
+    cert_file.write_all(&contents).unwrap();
 }
 
 /// Clears the config directory (~/.mitm) of all files 
@@ -194,14 +194,14 @@ pub fn get_certificate_authority() -> (X509, PKey<Private>) {
         // private key
         write_certificate_to_config_directory(
             "ca.key",
-            String::from_utf8(pkey.private_key_to_pem_pkcs8().unwrap()).unwrap(),
+            pkey.private_key_to_pem_pkcs8().unwrap(),
             Some(0o600),
         );
 
         // public cert
         write_certificate_to_config_directory(
             "ca.crt",
-            String::from_utf8(cert.to_pem().unwrap()).unwrap(),
+            cert.to_pem().unwrap(),
             Some(0o644),
         );
 
@@ -210,11 +210,11 @@ pub fn get_certificate_authority() -> (X509, PKey<Private>) {
         // Else load the CA, and return it
         // First the key
         let key_string = get_from_config_directory("ca.key");
-        let pkey  = PKey::private_key_from_pem(&key_string.as_bytes()).expect("Failed to parse CA private key");
+        let pkey  = PKey::private_key_from_pem(&key_string).expect("Failed to parse CA private key");
 
         // Then the certificate
         let cert_string = get_from_config_directory("ca.crt");
-        let cert = X509::from_pem(&cert_string.as_bytes()).expect("Failed to parse CA certificate");
+        let cert = X509::from_pem(&cert_string).expect("Failed to parse CA certificate");
 
         (cert, pkey)
     }
@@ -266,7 +266,7 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str) -> 
     let file_name = cn.to_string() + ".key";
     write_certificate_to_config_directory_async(
         &file_name,
-        String::from_utf8(leaf_pkey.private_key_to_pem_pkcs8().unwrap()).unwrap(),
+        leaf_pkey.private_key_to_pem_pkcs8().unwrap(),
         Some(0o600)
     ).await;
 
@@ -274,7 +274,7 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str) -> 
     let file_name = cn.to_string() + ".crt";
     write_certificate_to_config_directory_async(
         &file_name,
-        String::from_utf8(cert.to_pem().unwrap()).unwrap(),
+        cert.to_pem().unwrap(),
         Some(0o644)).await;
     
     (cert, leaf_pkey)
