@@ -1,17 +1,16 @@
+use dashmap::DashMap;
 use log::info;
-use pingora_openssl::pkey::PKey;
-use pingora_openssl::x509::X509;
+use openssl::hash::MessageDigest;
+use openssl::pkey::{PKey, Private};
+use openssl::rsa::Rsa;
+use openssl::x509::{X509Builder, X509NameBuilder};
+use openssl::x509::extension::{BasicConstraints, KeyUsage};
+use openssl::x509::X509;
 use std::env;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use tokio::io::AsyncWriteExt;
-use dashmap::DashMap;
-use openssl::hash::MessageDigest;
-use openssl::pkey::{ Private};
-use openssl::rsa::Rsa;
-use openssl::x509::{X509Builder, X509NameBuilder};
-use openssl::x509::extension::{BasicConstraints, KeyUsage};
 
 pub type CertCache = DashMap<String, (X509, PKey<openssl::pkey::Private>)>;
 
@@ -189,7 +188,7 @@ pub fn get_certificate_authority() -> (X509, PKey<Private>) {
     if !ca_files_exist() {
         // Generate, write, and return
         // If the file doesn't already create them, and save thme
-        let (cert, pkey) = generate_ca_cert("test.example.local");
+        let (cert, pkey) = generate_ca_cert("MITM Certificate Authority");
 
         // private key
         write_certificate_to_config_directory(
@@ -219,8 +218,6 @@ pub fn get_certificate_authority() -> (X509, PKey<Private>) {
         (cert, pkey)
     }
 }
-
-
 
 /// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
 /// Finally it returns a CertifiedKey of the Leaf Certificate. 
@@ -282,21 +279,87 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str) -> 
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
+    use openssl::nid::Nid;
 
     #[test]
     fn test_generate_ca_cert() {
-        // TODO: Create this test!
-        unimplemented!();
+        // Generate a CA cert and key
+        let (cert, key) = generate_ca_cert("test.example.local");
+
+        // Check that the certificate and key are not empty
+        let cert_pem = cert.to_pem().expect("Failed to encode cert to PEM");
+        let key_pem = key.private_key_to_pem_pkcs8().expect("Failed to encode key to PEM");
+        assert!(!cert_pem.is_empty(), "Certificate PEM should not be empty");
+        assert!(!key_pem.is_empty(), "Key PEM should not be empty");
+
+        // Check that the certificate and key match
+        let pubkey_from_cert = cert.public_key().expect("Failed to extract public key from cert");
+        assert!(
+            pubkey_from_cert.public_eq(&key),
+            "Certificate public key does not match private key"
+        );
+
+        // Check that the subject CN is correct
+        let subject = cert.subject_name();
+        let cn_entry = subject.entries_by_nid(Nid::COMMONNAME).next();
+        assert!(cn_entry.is_some(), "Certificate should have a CN entry");
+        let cn = cn_entry.unwrap().data().as_utf8().unwrap().to_string();
+        assert_eq!(cn, "test.example.local");
+
+        // Check that the issuer and subject are the same (self-signed CA)
+        let issuer = cert.issuer_name();
+        assert_eq!(
+            issuer.to_der().unwrap(),
+            subject.to_der().unwrap(),
+            "Issuer and subject should be identical"
+        );
+
     }
 
     #[test]
     fn test_generate_leaf_cert() {
-        // TODO: Create this test! 
-        // This will panic because it's unimplemented, but shows the pattern:
-        // let ca_cert = generate_ca_cert();
-        // let (_cert, _key) = generate_leaf_cert(&ca_cert, "example.com");
-        // assert!(/* some condition about cert and key */);
-        unimplemented!();
+        // Generate a CA cert and key
+        let (ca_cert, ca_key) = generate_ca_cert("test-ca.example.local");
+
+        // Generate a leaf cert and key signed by the CA
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let (leaf_cert, leaf_key) = rt.block_on(get_leaf_cert(&ca_cert, &ca_key, "leaf.example.com"));
+
+        // Check that the leaf certificate and key are not empty
+        let cert_pem = leaf_cert.to_pem().expect("Failed to encode leaf cert to PEM");
+        let key_pem = leaf_key.private_key_to_pem_pkcs8().expect("Failed to encode leaf key to PEM");
+        assert!(!cert_pem.is_empty(), "Leaf certificate PEM should not be empty");
+        assert!(!key_pem.is_empty(), "Leaf key PEM should not be empty");
+
+        // Check that the leaf certificate and key match
+        let pubkey_from_cert = leaf_cert.public_key().expect("Failed to extract public key from leaf cert");
+        assert!(
+            pubkey_from_cert.public_eq(&leaf_key),
+            "Leaf certificate public key does not match private key"
+        );
+
+        // Check that the issuer of the leaf certificate matches the subject of the CA certificate
+        let leaf_issuer = leaf_cert.issuer_name();
+        let ca_subject = ca_cert.subject_name();
+        assert_eq!(
+            leaf_issuer.to_der().unwrap(),
+            ca_subject.to_der().unwrap(),
+            "Leaf certificate issuer should match CA subject"
+        );
+
+        // Check that the subject CN is correct
+        let subject = leaf_cert.subject_name();
+        let cn_entry = subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next();
+        assert!(cn_entry.is_some(), "Leaf certificate should have a CN entry");
+        let cn = cn_entry.unwrap().data().as_utf8().unwrap().to_string();
+        assert_eq!(cn, "leaf.example.com");
+
+        // Verify that the leaf certificate was signed by the CA
+        assert!(
+            leaf_cert.verify(&ca_key).unwrap(),
+            "Leaf certificate signature could not be verified with CA key"
+        );
+        
     }
 }

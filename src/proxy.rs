@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use log::{info,debug};
+use openssl::pkey::{PKey, Private};
+use openssl::x509::X509;
 use pingora::prelude::*;
 use pingora::upstreams::peer::HttpPeer;
 use pingora::listeners::TlsAccept;
 use pingora::server::Server;
 use pingora::server::configuration::ServerConf;
-use pingora_openssl::pkey::{PKey, Private};
-use pingora_openssl::x509::X509;
 use std::ffi::OsStr;
 use tokio::net::lookup_host;
 
@@ -164,6 +164,8 @@ impl MyCertProvider {
         cert_provider        
     }
 
+    // Security Note:
+    // The CA certifcate and private key is initialized into the cache, indexed as `ca`
     pub async fn get_leaf_cert(&self, sni: &str) -> (X509, PKey<Private>) {
         // Try to get from cache first
         if let Some(entry) = self.cert_cache.get(sni) {
@@ -182,40 +184,62 @@ impl MyCertProvider {
         cert
     }
 
-    fn fill_cache(&mut self) {     
+    fn fill_cache(&mut self) {
         let mitm_dir = ca::get_mitm_directory();
 
-        // Fill the cache
         if let Ok(entries) = std::fs::read_dir(&mitm_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_file() {
-                    if let Some(ext) = path.extension() {
-                        if ext == OsStr::new("crt") {
-                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                                // Read cert
-                                let crt_data = std::fs::read(&path).unwrap();
-                                let x509 = X509::from_pem(&crt_data).unwrap();
-
-                                // Read corresponding key
-                                let mut key_path = path.clone();
-                                key_path.set_extension("key");
-                                
-                                let key_data = match std::fs::read(&key_path) {
-                                    Ok(data) => data,
-                                    Err(e) => {
-                                        panic!("Could not read key file {:?}: {}.", key_path, e);
-                                    }                                
-                                };
-
-                                let pkey = PKey::private_key_from_pem(&key_data).unwrap();
-
-                                debug!("Filling cert_cache with entry: {}", stem);
-                                self.cert_cache.insert(stem.to_string(), (x509, pkey));
-                            }
-                        }
-                    }
+                if !path.is_file() {
+                    continue;
                 }
+
+                match path.extension() {
+                    Some(ext) if ext == OsStr::new("crt") => {}
+                    _ => continue,
+                };
+
+                let stem = match path.file_stem().and_then(|s| s.to_str()) {
+                    Some(stem) => stem,
+                    None => continue,
+                };
+
+                // Read cert
+                let crt_data = match std::fs::read(&path) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        debug!("Could not read cert file {:?}: {}", path, e);
+                        continue;
+                    }
+                };
+                let x509 = match X509::from_pem(&crt_data) {
+                    Ok(cert) => cert,
+                    Err(e) => {
+                        debug!("Could not parse cert {:?}: {}", path, e);
+                        continue;
+                    }
+                };
+
+                // Read corresponding key
+                let mut key_path = path.clone();
+                key_path.set_extension("key");
+                let key_data = match std::fs::read(&key_path) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        debug!("Could not read key file {:?}: {}", key_path, e);
+                        continue;
+                    }
+                };
+                let pkey = match PKey::private_key_from_pem(&key_data) {
+                    Ok(key) => key,
+                    Err(e) => {
+                        debug!("Could not parse key {:?}: {}", key_path, e);
+                        continue;
+                    }
+                };
+
+                debug!("Filling cert_cache with entry: {}", stem);
+                self.cert_cache.insert(stem.to_string(), (x509, pkey));
             }
         }
     }

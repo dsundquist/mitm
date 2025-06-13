@@ -27,7 +27,7 @@ mitm           # same as `mitm start`
 mitm start     # runs a https mitm server listening on localhost:6188
 mitm start -h  # Shows all the options
 mitm start -c "path/to/upstream_ca_store.crt"   # Specify an upstream cert store 
-RUST_LOG=debug mitm start -l "127.0.0.1:1443" -W 2443 -u "127.0.0.1:3443" -i -k
+RUST_LOG=debug mitm start -l "127.0.0.1:1443" -W 2443 -u "127.0.0.1:3443" -k
 ```
 
 ### mitm start help menu: 
@@ -83,10 +83,10 @@ A straight forward HTTPS proxy service:
 In this example: 
 
 ```
-RUST_LOG=debug mitm start -l "127.0.0.1:1443" -u "127.0.0.1:3443" -i -k
+RUST_LOG=debug mitm start -l "127.0.0.1:1443" -u "127.0.0.1:3443" -k
 ```
 
-The proxy will listen (`-l`) on `127.0.0.1:1443`, sending all upstream (`-u`) traffic to `127.0.0.1:3443`, ignoring (`-i`) the certificate's validity, and will not check that the upstream SNI matches the Subject Alternative Name (`-k`).  Additionally, the log level is set by the environment variable `RUST_LOG`.
+The proxy will listen (`-l`) on `127.0.0.1:1443`, sending all upstream (`-u`) traffic to `127.0.0.1:3443`, ignoring the certificate's validity (`-k`).  Additionally, the log level is set by the environment variable `RUST_LOG`.
 
 ## Wireshark Mode 
 
@@ -110,9 +110,9 @@ mitm start -u "127.0.0.1:443" -i -k -W 4076
 * Make CA fields customizeable
 * Make leaf certificates customizeable
 * Do a full one-over on logging... Logging is inconsistent at the moment. 
-* Remove unwraps and panics, in favor of returning Results<T,E>. 
+* Remove unwraps and panics, in favor of returning Results, ? operator... 
 * Flamegraph, what takes the longest on a request with a cached certificate (think it could be faster)
-* Create Tests <- CA validity for leaf certs, connect connector to listner? 
+* Make more tests (only 2 exist in ca.rs)
 
 ## Maybe:
 * Create a DNS server, that only responds with the address of the MITM proxy? 
