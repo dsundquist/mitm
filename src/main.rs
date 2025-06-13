@@ -53,7 +53,7 @@ fn handle_ca_init_command() {
 fn handle_ca_sign_command(sign_args: commands::CASignArgs) {
     let rt = Runtime::new().unwrap();
     let (cert, pkey) = ca::get_certificate_authority();
-    rt.block_on(ca::get_leaf_cert(&cert, &pkey, &sign_args.san_name));
+    rt.block_on(ca::get_leaf_cert(&cert, &pkey, &sign_args.san_name, true));
 }
 
 fn handle_ca_clear_command(clear_args: commands::CAClearArgs) {

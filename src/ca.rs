@@ -226,7 +226,7 @@ pub fn get_certificate_authority() -> (X509, PKey<Private>) {
 
 /// First calls get_certificate_authority(), then generates a leaf certificate (with hostname as CommonName and SAN).
 /// Finally it returns a CertifiedKey of the Leaf Certificate. 
-pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str) -> (X509, PKey<Private>) {
+pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str, write_to_disk: bool) -> (X509, PKey<Private>) {
     
     // Generate leaf private key
     let rsa = Rsa::generate(2048).expect("Failed to generate RSA key");
@@ -265,21 +265,24 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str) -> 
     let cert = builder.build();
 
     // Write it to the config directory, starting with the private key
-    let file_name = cn.to_string() + ".key";
-    write_certificate_to_config_directory_async(
-        &file_name,
-        leaf_pkey.private_key_to_pem_pkcs8().unwrap(),
-        Some(0o600)
-    ).await;
+    if write_to_disk {
+        let file_name = cn.to_string() + ".key";
+        write_certificate_to_config_directory_async(
+            &file_name,
+            leaf_pkey.private_key_to_pem_pkcs8().unwrap(),
+            Some(0o600)
+        ).await;
 
-    // then the public cert
-    let file_name = cn.to_string() + ".crt";
-    write_certificate_to_config_directory_async(
-        &file_name,
-        cert.to_pem().unwrap(),
-        Some(0o644)).await;
+        // then the public cert
+        let file_name = cn.to_string() + ".crt";
+        write_certificate_to_config_directory_async(
+            &file_name,
+            cert.to_pem().unwrap(),
+            Some(0o644)).await;
+    }
     
     (cert, leaf_pkey)
+
 }
 
 #[cfg(test)]
@@ -329,7 +332,7 @@ mod tests {
 
         // Generate a leaf cert and key signed by the CA
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let (leaf_cert, leaf_key) = rt.block_on(get_leaf_cert(&ca_cert, &ca_key, "leaf.example.com"));
+        let (leaf_cert, leaf_key) = rt.block_on(get_leaf_cert(&ca_cert, &ca_key, "leaf.example.com", false));
 
         // Check that the leaf certificate and key are not empty
         let cert_pem = leaf_cert.to_pem().expect("Failed to encode leaf cert to PEM");
