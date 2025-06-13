@@ -178,7 +178,7 @@ impl MyCertProvider {
         // Otherwise, generate and insert into cache
         info!("Generating leaf certificate for: {}", sni);
 
-        let cert = ca::get_leaf_cert(&self.ca_cert, &self.ca_pkey, sni).await;
+        let cert = ca::get_leaf_cert(&self.ca_cert, &self.ca_pkey, sni, true).await;
         // info!{"{:?}", cert.0.clone()};
         self.cert_cache.insert(sni.to_string(), (cert.0.clone(), cert.1.clone()));
         cert
