@@ -1,32 +1,33 @@
 # MITM 
 
-A https main-in-the-middle proxy, built using [Pingora Proxy](https://docs.rs/pingora). 
+An HTTPS main-in-the-middle proxy, built using [Pingora](https://docs.rs/pingora). 
 
-The proxy automatically generates (or if it exists, loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  
+The proxy automatically generates (or if it exists loads) a Certificate Authority, PEM encoded, at `~/.mitm/ca.crt` and `~/.mitm/ca.key`.  
 
 > **NOTE:**
 > The Certificate Authority is stored in the active user's home directory. If you run `sudo mitm start -p 443 ...`, the CA will be created or loaded in the root user's home directory instead of your own.
 
-That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority based on the incomming (downstream) SNI.  Leaf certificates are saved to disk when generated, saved in a cache when requested, and populated into the cache when the proxy starts. 
+That certificate authority is then used for any web requests.  That is, the proxy auto generates leaf certificates by the Certificate Authority based on the incoming (downstream) SNI.  Leaf certificates are saved to disk when generated, cached when requested, and the cache is populated when the proxy starts.
 
 This proxy can be helpful for decrypting TLS traffic if you can: 
 
 1) Force the traffic to the listening port of the proxy
 2) Install the Certificate Authority (`~/.mitm/ca.crt`) into the appropriate certificate store of the downstream client. 
 
-There is an interesting feature (enabled by the `-W` flag to the `start` subcommand) that I'm calling [Wireshark Mode](#wireshark-mode).
+There is an interesting feature, enabled by the `-W` flag to the `start` sub command, that I'm calling [Wireshark Mode](#wireshark-mode).
 
 Since Pingora natively supports WebSockets, this MITM proxy transparently handles WebSocket connections as well—no additional configuration required.
 
 ## Usage
 
-### Basic Commands:
+### Commands:
 
 ```
-mitm        # same as `mitm start`
-mitm start  # runs a https mitm server listening on localhost:6188
+mitm           # same as `mitm start`
+mitm start     # runs a https mitm server listening on localhost:6188
+mitm start -h  # Shows all the options
 mitm start -c "path/to/upstream_ca_store.crt"   # Specify an upstream cert store 
-mitm start -h # Shows all the options 
+RUST_LOG=debug mitm start -l "127.0.0.1:1443" -W 2443 -u "127.0.0.1:3443" -i -k
 ```
 
 ### mitm start help menu: 
@@ -66,18 +67,26 @@ Options:
 # Generates a Certificate Authority in $HOME/.mitm
 mitm ca init
 # Generate a leaf certificate signed by CA 
-mitm ca sign -n "host.example.com" 
+mitm ca sign -s "host.example.com" 
 ```
 
 ## Normal Proxy mode (mitm start)
 
-A straight forward proxy service: 
+A straight forward HTTPS proxy service: 
 
 ```
 +---------------------+     +-----------+     +------------------------+
 | Client (Downstream) | --> |   MITM    | --> | HTTPS Server (Upstream)|
 +---------------------+     +-----------+     +------------------------+
 ```
+
+In this example: 
+
+```
+RUST_LOG=debug mitm start -l "127.0.0.1:1443" -u "127.0.0.1:3443" -i -k
+```
+
+The proxy will listen (`-l`) on `127.0.0.1:1443`, sending all upstream (`-u`) traffic to `127.0.0.1:3443`, ignoring (`-i`) the certificate's validity, and will not check that the upstream SNI matches the Subject Alternative Name (`-k`).  Additionally, the log level is set by the environment variable `RUST_LOG`.
 
 ## Wireshark Mode 
 
@@ -89,7 +98,7 @@ A proxy composed of two components:
 +--------+     +-----------+     +-----------+     +--------------+
 ```
 
-Where the traffic between Service A and Service B traverses the loopback interface, unencrypted.  That is, open up wireshark on the loopback interface and use the filter `tcp.port == 4076`.  The port (4076) is passed with the `-W` flag.  Eg: 
+In this mode, the traffic between Service A and Service B traverses the loopback interface unencrypted. That is, open up Wireshark on the loopback interface and use the filter `tcp.port == 4076`.  The port (4076) is passed with the `-W` flag.  Eg: 
 
 ```
 mitm start -u "127.0.0.1:443" -i -k -W 4076
@@ -115,14 +124,14 @@ mitm start -u "127.0.0.1:443" -i -k -W 4076
 ### Verifying a leaf certificate against a CA:
 
 ```
-openssl verify -CAfile ca.crt example.sundquist.net.crt
+openssl verify -CAfile ca.crt example.com.crt
 ```
 
 ### Test setup commands: 
 
 ```
-cargo run -- ca sign -s "example.sundquist.net"
-sudo gotestserver serve -s --cert "$HOME/.mitm/example.sundquist.net.crt" --key "$HOME/.mitm/example.sundquist.net.key"
+cargo run -- ca sign -s "example.com"
+sudo gotestserver serve -s --cert "$HOME/.mitm/example.com.crt" --key "$HOME/.mitm/example.sundquist.com.key"
 cargo run -- start -c "$HOME/.mitm/ca.crt"
-curl https://example.sundquist.net/request --connect-to ::127.0.0.1:6188 -svk 
+curl https://example.com/request --connect-to ::127.0.0.1:6188 -svk 
 ```
