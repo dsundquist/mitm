@@ -135,3 +135,9 @@ sudo gotestserver serve -s --cert "$HOME/.mitm/example.com.crt" --key "$HOME/.mi
 cargo run -- start -c "$HOME/.mitm/ca.crt"
 curl https://example.com/request --connect-to ::127.0.0.1:6188 -svk 
 ```
+
+### Wireshark Proxy Example
+
+```
+sudo mitm start -i -k -W 8443 -l 127.0.0.1:443
+```

@@ -4,7 +4,7 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, Private};
 use openssl::rsa::Rsa;
 use openssl::x509::{X509Builder, X509NameBuilder};
-use openssl::x509::extension::{BasicConstraints, KeyUsage};
+use openssl::x509::extension::{BasicConstraints, KeyUsage, SubjectAlternativeName};
 use openssl::x509::X509;
 use std::io::Write;
 use std::path::PathBuf;
@@ -232,7 +232,7 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str, wri
     let rsa = Rsa::generate(2048).expect("Failed to generate RSA key");
     let leaf_pkey = PKey::from_rsa(rsa).expect("Failed to create PKey");
 
-    // Build subject name for leaf
+    // Build Common Name for leaf
     let mut name_builder = X509NameBuilder::new().unwrap();
     name_builder.append_entry_by_text("CN", cn).unwrap();
     let name = name_builder.build();
@@ -243,6 +243,7 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str, wri
     builder.set_subject_name(&name).unwrap();
     builder.set_issuer_name(ca_cert.subject_name()).unwrap();
     builder.set_pubkey(&leaf_pkey).unwrap();
+    
 
     // Set validity
     builder.set_not_before(&openssl::asn1::Asn1Time::days_from_now(0).unwrap()).unwrap();
@@ -251,6 +252,13 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str, wri
     // Set extensions (no CA, only digitalSignature and keyEncipherment)
     let basic_constraints = BasicConstraints::new().critical().build().unwrap();
     builder.append_extension(basic_constraints).unwrap();
+
+    // Add the Subject Alternative Name (SAN)
+    let san = SubjectAlternativeName::new()
+        .dns(cn)
+        .build(&builder.x509v3_context(Some(ca_cert), None))
+        .unwrap();
+    builder.append_extension(san).unwrap();
 
     let key_usage = KeyUsage::new()
         .digital_signature()
