@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-log = "0.4.27"
 async-trait="0.1"
 # Replaced with dependency bellow 
 # pingora = { version = "0.5", features = ["lb", "openssl"] }
@@ -16,6 +15,8 @@ openssl = "0.10.73"
 dashmap = "6.1.0"
 tokio = { version = "1.45", features = ["full"] }
 dirs = "6.0.0"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "chrono"] }
 
 # This is a rebased (to 0.5.0) fork of the fork: https://github.com/pszabop/pingora
 # See issue: https://github.com/cloudflare/pingora/issues/547

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use log::{info,debug};
+use tracing::{info,debug};
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use pingora::prelude::*;

@@ -3,17 +3,21 @@ mod commands; // clap derive code
 mod proxy; // pingora impl code
 
 use clap::Parser;
-use env_logger::Env;
-use log::{info, debug};
+use tracing::{info, debug, warn};
+use tracing_subscriber::{fmt, EnvFilter};
 use pingora::prelude::*;
 use pingora::listeners::tls::TlsSettings;
 use tokio::runtime::Runtime;
 
 fn main() {
-    // Logging uses the env variable "RUST_LOG", otherwise info
-    env_logger::Builder::from_env(Env::default().default_filter_or("info"))
-        .format_target(true)
-        .format_timestamp(Some(env_logger::TimestampPrecision::Seconds))
+    // Initialize tracing subscriber with console output
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env()
+                .unwrap_or(EnvFilter::new("debug"))
+        )
+        .with_target(true)
+        .with_timer(fmt::time::ChronoUtc::new("%Y-%m-%dT%H:%M:%S%.3fZ".to_string()))
         .init();
 
     let cli = commands::Cli::parse();
@@ -32,6 +36,12 @@ fn main() {
         },
         Some(commands::Commands::Start(start_args)) => {
             debug!("Start Args: \n{:?}", start_args);
+            // Seems the default certificate store on Windows does not work with pingora
+            if cfg!(windows) && !start_args.ignore_cert && start_args.ca_file.is_none() {
+                warn!(
+                    "Warning: On Windows, certificate validation may fail unless --ca_file is set"
+                );
+            }
 
             if start_args.wireshark_mode.is_none() {
                 handle_start_command(start_args);

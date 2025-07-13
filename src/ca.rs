@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use log::info;
+use tracing::info;
 use openssl::hash::MessageDigest;
 use openssl::pkey::{PKey, Private};
 use openssl::rsa::Rsa;
