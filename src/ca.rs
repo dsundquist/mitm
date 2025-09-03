@@ -243,8 +243,14 @@ pub async fn get_leaf_cert(ca_cert: &X509, ca_key: &PKey<Private>, cn: &str, wri
     builder.set_subject_name(&name).unwrap();
     builder.set_issuer_name(ca_cert.subject_name()).unwrap();
     builder.set_pubkey(&leaf_pkey).unwrap();
-    
 
+    // Add DNSName to certificate (necessary for some clients)
+    let san = SubjectAlternativeName::new()
+        .dns(cn)
+        .build(&builder.x509v3_context(Some(ca_cert), None))
+        .unwrap();
+    builder.append_extension(san).unwrap();
+    
     // Set validity
     builder.set_not_before(&openssl::asn1::Asn1Time::days_from_now(0).unwrap()).unwrap();
     builder.set_not_after(&openssl::asn1::Asn1Time::days_from_now(365).unwrap()).unwrap();
