@@ -18,9 +18,10 @@ dirs = "6.0.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "chrono"] }
 
-# This is a rebased (to 0.5.0) fork of the fork: https://github.com/pszabop/pingora
+# This is a rebased (to ~0.6.0) fork of the fork: https://github.com/pszabop/pingora
 # See issue: https://github.com/cloudflare/pingora/issues/547
 [dependencies.pingora]
 git = "https://github.com/dsundquist/pingora.git"
 branch = "add-sni"
+# path = "/Users/dsundquist/workspace/pingora/pingora"
 features = ["openssl", "lb"]
