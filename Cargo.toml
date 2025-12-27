@@ -5,22 +5,16 @@ edition = "2024"
 
 [dependencies]
 async-trait="0.1"
-# Replaced with dependency bellow 
-# pingora = { version = "0.5", features = ["lb", "openssl"] }
-pingora-core = "0.6"
+# This fork contains a pull request to resolve Windows support
+# See issue: https://github.com/cloudflare/pingora/issues/425
+pingora = { branch="windows-support", git = "https://github.com/dsundquist/pingora.git", features = ["openssl", "lb"] }
+pingora-core = { branch="windows-support", git = "https://github.com/dsundquist/pingora.git"}
+pingora-openssl = { branch="windows-support", git = "https://github.com/dsundquist/pingora.git"}
 env_logger = "0.11.8"
 clap = { version = "4.5", features = ["derive"] }
-pingora-openssl = "0.6.0"
 openssl = "0.10.73"
 dashmap = "6.1.0"
 tokio = { version = "1.45", features = ["full"] }
 dirs = "6.0.0"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "chrono"] }
-
-# This is a rebased (to 0.5.0) fork of the fork: https://github.com/pszabop/pingora
-# See issue: https://github.com/cloudflare/pingora/issues/547
-[dependencies.pingora]
-git = "https://github.com/cloudflare/pingora.git"
-# branch = "add-sni"
-features = ["openssl", "lb"]
