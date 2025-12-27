@@ -266,6 +266,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bstr"
+version = "1.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63044e1ae8e69f3b5a92c736ca6269b8d12fa7efe39bf34ddb06d102cf0e2cab"
+dependencies = [
+ "memchr",
+ "regex-automata 0.4.9",
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -743,9 +754,9 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
 name = "h2"
-version = "0.4.10"
+version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9421a676d1b147b16b82c9225157dc629087ef8ec4d5e2960f9437a90dac0a5"
+checksum = "f3c0b69cfcb4e1b9f1bf2f53f95f766e4661169728ec61cd3fe5a0166f2d1386"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1080,8 +1091,8 @@ dependencies = [
  "env_logger",
  "openssl",
  "pingora",
- "pingora-core 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pingora-openssl 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-core 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-openssl 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -1285,25 +1296,26 @@ checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
 name = "pingora"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "pingora-cache",
- "pingora-core 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-http 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-core 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-http 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "pingora-load-balancing",
  "pingora-proxy",
- "pingora-timeout 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-timeout 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
 ]
 
 [[package]]
 name = "pingora-cache"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "ahash",
  "async-trait",
  "blake2",
+ "bstr",
  "bytes",
  "cf-rustracing",
  "cf-rustracing-jaeger",
@@ -1316,12 +1328,12 @@ dependencies = [
  "lru",
  "once_cell",
  "parking_lot",
- "pingora-core 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-error 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-core 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-error 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "pingora-header-serde",
- "pingora-http 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-http 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "pingora-lru",
- "pingora-timeout 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-timeout 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "rand",
  "regex",
  "rmp",
@@ -1333,9 +1345,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-core"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2298292e2dbd156294bcc8dd2ec34507277c78bab31bfe3aecc1cab9b1f91dff"
+checksum = "76f63d3f67d99c95a1f85623fc43242fd644dd12ccbaa18c38a54e1580c6846a"
 dependencies = [
  "ahash",
  "async-trait",
@@ -1358,16 +1370,16 @@ dependencies = [
  "openssl-probe",
  "parking_lot",
  "percent-encoding",
- "pingora-error 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pingora-http 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pingora-pool 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pingora-runtime 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pingora-timeout 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-error 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-http 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-pool 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-runtime 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-timeout 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "prometheus",
  "rand",
  "regex",
  "serde",
- "serde_yaml",
+ "serde_yaml 0.8.26",
  "sfv",
  "socket2",
  "strum",
@@ -1381,15 +1393,16 @@ dependencies = [
 
 [[package]]
 name = "pingora-core"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "ahash",
  "async-trait",
  "brotli",
+ "bstr",
  "bytes",
  "chrono",
- "clap 3.2.25",
+ "clap 4.5.39",
  "daemonize",
  "derivative",
  "flate2",
@@ -1405,22 +1418,23 @@ dependencies = [
  "openssl-probe",
  "parking_lot",
  "percent-encoding",
- "pingora-error 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-http 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-openssl 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-pool 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-runtime 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-timeout 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-error 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-http 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-openssl 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-pool 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-runtime 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-timeout 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "prometheus",
  "rand",
  "regex",
  "serde",
- "serde_yaml",
+ "serde_yaml 0.9.34+deprecated",
  "sfv",
  "socket2",
  "strum",
  "strum_macros",
  "tokio",
+ "tokio-stream",
  "tokio-test",
  "unicase",
  "windows-sys 0.59.0",
@@ -1429,25 +1443,25 @@ dependencies = [
 
 [[package]]
 name = "pingora-error"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca838db1ee9beef844d6db7e2e85e0006b50bb6bf8f19c96fb64bf2567e59039"
+checksum = "52119570d3f4644e09654ad24df2b7d851bf12eaa8c4148b4674c7f90916598e"
 
 [[package]]
 name = "pingora-error"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 
 [[package]]
 name = "pingora-header-serde"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "bytes",
  "http",
  "httparse",
- "pingora-error 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-http 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-error 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-http 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "thread_local",
  "zstd",
  "zstd-safe",
@@ -1455,37 +1469,37 @@ dependencies = [
 
 [[package]]
 name = "pingora-http"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f15f9fa5ae034435adfe2b94620e25dee7b0859c2460acec499163de3d299f1"
+checksum = "5a3542fd0fd0a83212882c5066ae739ba51804f20d624ff7e12ec85113c5c89a"
 dependencies = [
  "bytes",
  "http",
- "pingora-error 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-error 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "pingora-http"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "bytes",
  "http",
- "pingora-error 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-error 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
 ]
 
 [[package]]
 name = "pingora-ketama"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "crc32fast",
 ]
 
 [[package]]
 name = "pingora-load-balancing"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1494,19 +1508,19 @@ dependencies = [
  "futures",
  "http",
  "log",
- "pingora-core 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-error 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-http 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-core 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-error 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-http 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "pingora-ketama",
- "pingora-runtime 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-runtime 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "rand",
  "tokio",
 ]
 
 [[package]]
 name = "pingora-lru"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "arrayvec",
  "hashbrown 0.15.3",
@@ -1516,9 +1530,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-openssl"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c82984830763c614e2f5950efbfb0b6f92fd59610ce656be35abf0fb8232308"
+checksum = "d390f21024c6c8e171fd9ee82aee0cacdd324d079535d1b47011acabed87673b"
 dependencies = [
  "foreign-types",
  "libc",
@@ -1529,8 +1543,8 @@ dependencies = [
 
 [[package]]
 name = "pingora-openssl"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "foreign-types",
  "libc",
@@ -1541,59 +1555,60 @@ dependencies = [
 
 [[package]]
 name = "pingora-pool"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a74589c2e4f089d00fde78030e2d51b44406341e1e43b0bdb5456b93b4459937"
+checksum = "996c574f30a6e1ad10b47ac1626a86e0e47d5075953dd049d60df16ba5f7076e"
 dependencies = [
  "crossbeam-queue",
  "log",
  "lru",
  "parking_lot",
- "pingora-timeout 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pingora-timeout 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thread_local",
  "tokio",
 ]
 
 [[package]]
 name = "pingora-pool"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "crossbeam-queue",
  "log",
  "lru",
  "parking_lot",
- "pingora-timeout 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-timeout 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
  "thread_local",
  "tokio",
 ]
 
 [[package]]
 name = "pingora-proxy"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "async-trait",
  "bytes",
- "clap 3.2.25",
+ "clap 4.5.39",
  "futures",
  "h2",
  "http",
  "log",
  "once_cell",
  "pingora-cache",
- "pingora-core 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-error 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
- "pingora-http 0.5.0 (git+https://github.com/dsundquist/pingora.git?branch=add-sni)",
+ "pingora-core 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-error 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "pingora-http 0.6.0 (git+https://github.com/cloudflare/pingora.git)",
+ "rand",
  "regex",
  "tokio",
 ]
 
 [[package]]
 name = "pingora-runtime"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e720a120466e8f61a64384deff6d7a52de6df6a4c54b0046c70c9cf0eaad1092"
+checksum = "8ccc165021cf55a39b9e760121b22c4260b17a0b2c530d5b93092fc5bc765b94"
 dependencies = [
  "once_cell",
  "rand",
@@ -1603,8 +1618,8 @@ dependencies = [
 
 [[package]]
 name = "pingora-runtime"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "once_cell",
  "rand",
@@ -1614,9 +1629,9 @@ dependencies = [
 
 [[package]]
 name = "pingora-timeout"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fd4538cb5a3ae793c63126fc21e77e20778742931e31a5ac64e75b3ca10d176"
+checksum = "548cd21d41611c725827677937e68f2cd008bbfa09f3416d3fbad07e1e42f6d7"
 dependencies = [
  "once_cell",
  "parking_lot",
@@ -1627,8 +1642,8 @@ dependencies = [
 
 [[package]]
 name = "pingora-timeout"
-version = "0.5.0"
-source = "git+https://github.com/dsundquist/pingora.git?branch=add-sni#c1d56e9aef5098a41e20f3cb54d7c430599fa098"
+version = "0.6.0"
+source = "git+https://github.com/cloudflare/pingora.git#94e9de6382a2608e4b7eed7f1880065018a0d3b1"
 dependencies = [
  "once_cell",
  "parking_lot",
@@ -1916,6 +1931,19 @@ dependencies = [
  "ryu",
  "serde",
  "yaml-rust",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap 2.9.0",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -2290,6 +2318,12 @@ name = "unicode-ident"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "utf8parse"

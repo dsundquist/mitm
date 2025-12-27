@@ -8,6 +8,9 @@ use pingora::listeners::TlsAccept;
 use pingora::server::Server;
 use pingora::server::configuration::ServerConf;
 use std::ffi::OsStr;
+use std::sync::Arc;
+use std::any::Any;
+use openssl::ssl::{NameType, SslRef};
 use tokio::net::lookup_host;
 
 use crate::ca::{self, get_certificate_authority};
@@ -74,18 +77,18 @@ impl ProxyHttp for Mitm {
                 custom_sni
             }
             None => { 
-                let ssl_digest = session.downstream_session.digest().unwrap().ssl_digest.clone();
-
                 // The SSL_digest above will not exist when the downstream is unencrypted 
-                let sni = match ssl_digest {
-                    Some(arc) => arc.as_ref().sni.clone(),
-                    None => None,
-                };
-
+                let my_tls_info = session
+                    .digest()
+                    .and_then(|digest| digest.ssl_digest.as_ref())
+                    .and_then(|ssl_digest| ssl_digest.extension.get::<MyTlsInfo>());
+                let sni = my_tls_info
+                    .and_then(|my_tls_info| my_tls_info.sni.as_deref());
+                
                 match sni { 
                     Some(sni) => { // (2)
                         info!("Using downstream sni: {}", sni);
-                        &sni.clone()
+                        &sni
                     }
                     None => { 
                         let host = get_host(session); // (3) / (4)
@@ -126,7 +129,11 @@ impl ProxyHttp for Mitm {
             // TLS info, if available
             if let Some(digest) = session.downstream_session.digest() {
                 if let Some(ssl) = digest.ssl_digest.as_ref() {
-                    if let Some(sni) = &ssl.sni {
+
+                    let sni = ssl.extension.get::<MyTlsInfo>()
+                        .and_then(|my_tls_info| my_tls_info.sni.as_deref());
+
+                    if let Some(sni) = sni {
                         body.push_str(&format!("TLS SNI: {}\n", sni));
                     }
                     body.push_str(&format!("TLS Version: {}\n", &ssl.version));
@@ -245,6 +252,10 @@ impl MyCertProvider {
     }
 }
 
+pub struct MyTlsInfo {
+    pub sni: Option<String>,
+}
+
 #[async_trait]
 impl TlsAccept for MyCertProvider {
     async fn certificate_callback(&self, ssl: &mut pingora::protocols::tls::TlsRef) -> () {
@@ -258,6 +269,23 @@ impl TlsAccept for MyCertProvider {
         let leaf = &self.get_leaf_cert(&sni).await;
         ssl.set_certificate(&leaf.0).unwrap();        
         ssl.set_private_key(&leaf.1).unwrap();
+    }
+
+    async fn handshake_complete_callback(
+        &self,
+        ssl: &SslRef,
+    ) -> Option<Arc<dyn Any + Send + Sync>> {
+        // Here you can inspect the TLS connection and return an extension if needed.
+
+        // Extract SNI (Server Name Indication)
+        let sni = ssl
+            .servername(NameType::HOST_NAME)
+            .map(ToOwned::to_owned);
+
+        let tls_info = MyTlsInfo {
+            sni,
+        };
+        Some(Arc::new(tls_info))
     }
 }
 
